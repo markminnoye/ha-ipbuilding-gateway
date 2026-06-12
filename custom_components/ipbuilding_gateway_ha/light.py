@@ -9,8 +9,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from homeassistant.components.light import ColorMode, LightEntity
-from homeassistant.components.light.entity_description import LightEntityDescription
+from homeassistant.components.light import (
+    ColorMode,
+    LightEntity,
+    LightEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -22,18 +25,6 @@ log = logging.getLogger(__name__)
 
 # Key in devices.json that indicates a light
 _LIGHT_SEMANTIC_TYPES = {SEMANTIC_TYPE_LIGHT}
-
-
-def _device_to_entity_description(
-    device: dict[str, Any], coordinator: IPBuildingCoordinator
-) -> LightEntityDescription:
-    """Build a LightEntityDescription from a device dict."""
-    return LightEntityDescription(
-        key=device["id"],
-        name=device.get("name", device["id"]),
-        device_class=None,
-        original_icon="mdi:lightbulb",
-    )
 
 
 class IPBuildingLight(LightEntity):
@@ -63,6 +54,15 @@ class IPBuildingLight(LightEntity):
             "manufacturer": "IPBuilding",
             "model": device.get("semantic_type", "light"),
         }
+        # Entity description: name=None + has_entity_name=True makes HA derive
+        # the displayed name from the device name in the device registry.
+        # original_icon is preserved here since LightEntityDescription still
+        # supports it in HA 2026.3.
+        self.entity_description = LightEntityDescription(
+            key=device["id"],
+            name=None,
+            original_icon="mdi:lightbulb",
+        )
         # Store the update callback so the entity can be notified
         self._on_update: Callable[[dict], None] | None = None
 
@@ -95,8 +95,12 @@ class IPBuildingLight(LightEntity):
             level = state.get("level")
             if level is not None:
                 self._attr_brightness = round(255 * level / 100)
+                # HA 2026.3 enforces strict supported_color_modes validation:
+                # BRIGHTNESS and ONOFF cannot both be present in the set.
+                # Dimmer modules support BRIGHTNESS only; ONOFF is implied
+                # by brightness=0 and is exposed via the brightness attribute.
                 self._attr_color_mode = ColorMode.BRIGHTNESS
-                self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.ONOFF}
+                self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
