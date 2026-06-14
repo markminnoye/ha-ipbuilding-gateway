@@ -10,6 +10,7 @@ import logging
 from typing import Any, Callable
 
 from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
     ColorMode,
     LightEntity,
     LightEntityDescription,
@@ -45,9 +46,8 @@ class IPBuildingLight(LightEntity):
         self._coordinator = coordinator
         self._entity_id = device["id"]
         self._semantic_type: str = device.get("semantic_type", "light")
-        # True when the gateway exposes a brightness level (dimmer module).
-        # Determined from the initial device_list snapshot — not from entity_id.
-        self._is_dimmer: bool = "level" in device
+        # Dimmer modules use DIM commands on the gateway; relays use ON/OFF.
+        self._is_dimmer: bool = device.get("device_type") == "dimmer"
         self._attr_unique_id = device["id"]
         self._attr_device_info = {
             "identifiers": {(DOMAIN, device["id"])},
@@ -106,15 +106,23 @@ class IPBuildingLight(LightEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
-        if self._attr_brightness is not None and self._attr_brightness > 0:
+        if self._is_dimmer:
+            brightness = kwargs.get(ATTR_BRIGHTNESS, self._attr_brightness)
+            if not brightness:
+                level = 100
+            else:
+                level = max(1, round(brightness * 100 / 255))
             await self._coordinator.async_send_command(
-                self._entity_id, "DIM", round(self._attr_brightness * 100 / 255)
+                self._entity_id, "DIM", level
             )
-        else:
-            await self._coordinator.async_send_command(self._entity_id, "ON")
+            return
+        await self._coordinator.async_send_command(self._entity_id, "ON")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
+        if self._is_dimmer:
+            await self._coordinator.async_send_command(self._entity_id, "DIM", 0)
+            return
         await self._coordinator.async_send_command(self._entity_id, "OFF")
 
 

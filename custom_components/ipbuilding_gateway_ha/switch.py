@@ -47,6 +47,7 @@ class IPBuildingSwitch(SwitchEntity):
         self._device = device
         self._coordinator = coordinator
         self._entity_id = device["id"]
+        self._is_dimmer: bool = device.get("device_type") == "dimmer"
         self._attr_unique_id = device["id"]
         self._attr_device_info = _make_device_info(device)
         self._on_update: Callable[[dict], None] | None = None
@@ -76,10 +77,16 @@ class IPBuildingSwitch(SwitchEntity):
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
+        if self._is_dimmer:
+            await self._coordinator.async_send_command(self._entity_id, "DIM", 100)
+            return
         await self._coordinator.async_send_command(self._entity_id, "ON")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
+        if self._is_dimmer:
+            await self._coordinator.async_send_command(self._entity_id, "DIM", 0)
+            return
         await self._coordinator.async_send_command(self._entity_id, "OFF")
 
 

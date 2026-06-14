@@ -7,6 +7,20 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-06-14
+
+### Fixed
+- Dimmer light and switch entities now send `DIM` commands to the gateway
+  instead of `ON`/`OFF`. The northbound API only accepts `DIM` for dimmer
+  modules; relay-style commands were rejected with HTTP 400, so dimmers
+  appeared broken while relays worked.
+- Dimmer turn-on uses the brightness from the service call (`kwargs`) when
+  present, otherwise the last known level, otherwise 100%.
+- Dimmer detection uses `device_type == "dimmer"` instead of the presence of
+  a `level` field in the initial snapshot.
+
+## [0.1.3] — 2026-06-14
+
 ### Fixed
 - Channels with `active: false` are now correctly **disabled** in Home
   Assistant instead of being deleted. The runtime diff in `coordinator`
@@ -23,8 +37,6 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
   (`apply_active_registry_defaults` only affects brand-new registry entries).
   A user who manually re-enables a disabled entity is no longer fought on every
   steady-state snapshot — only freshly-seen and flipped ids are reconciled.
-
-## [0.1.3] — 2026-06-14
 
 ### Changed
 - WebSocket keep-alive: client-side `heartbeat` and `receive_timeout` are
@@ -81,6 +93,9 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 - WebSocket-coordinator met automatische reconnect
 - Nederlandse en Engelse vertalingen
 
-[Unreleased]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/markminnoye/ipbuilding-gateway-ha/releases/tag/v0.1.0
