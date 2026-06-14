@@ -18,19 +18,22 @@ from homeassistant.const import UnitOfPower
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
+from .entity import apply_active_registry_defaults
 
 log = logging.getLogger(__name__)
 
 
 def _make_power_description(device: dict[str, Any]) -> SensorEntityDescription:
     """Build a SensorEntityDescription for a power sensor."""
+    # ``original_icon`` was removed from ``EntityDescription`` in
+    # Home Assistant 2026.3. The icon is set as a class attribute on the
+    # entity itself in IPBuildingPowerSensor.
     return SensorEntityDescription(
         key=f"{device['id']}_power",
         name=f"{device.get('name', device['id'])} Power",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=None,
-        original_icon="mdi:flash",
     )
 
 
@@ -61,7 +64,9 @@ class IPBuildingPowerSensor(SensorEntity):
             "model": device.get("device_type", "unknown"),
         }
         self.entity_description = _make_power_description(device)
+        self._attr_icon = "mdi:flash"
         self._on_update: Callable[[dict], None] | None = None
+        apply_active_registry_defaults(self, device)
 
     async def async_added_to_hass(self) -> None:
         """Register for updates from the coordinator."""
@@ -95,11 +100,25 @@ async def async_setup_entry(
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
     devices = coordinator.data if isinstance(coordinator.data, dict) else {}
 
-    sensors = []
-    for entity_id, device in devices.items():
-        # Only expose power sensors for relay and dimmer devices.
-        device_type = device.get("device_type")
-        if device_type in ("relay", "dimmer"):
-            sensors.append(IPBuildingPowerSensor(device, coordinator))
+    seen_unique_ids: set[str] = set()
 
-    async_add_entities(sensors)
+    def _add(devices_to_add: list[dict]) -> None:
+        new_sensors = []
+        for device in devices_to_add:
+            if device.get("device_type") not in ("relay", "dimmer"):
+                continue
+            sensor = IPBuildingPowerSensor(device, coordinator)
+            if sensor._attr_unique_id in seen_unique_ids:
+                continue
+            seen_unique_ids.add(sensor._attr_unique_id)
+            new_sensors.append(sensor)
+        for sensor in new_sensors:
+            coordinator.track_platform_entity("sensor", sensor._entity_id, sensor)
+        if new_sensors:
+            async_add_entities(new_sensors)
+
+    # Initial setup: also through _add so a subsequent flip-to-active
+    # device doesn't try to recreate an already-registered power sensor.
+    _add(list(devices.values()))
+
+    coordinator.register_platform("sensor", _add)

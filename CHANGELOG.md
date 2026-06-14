@@ -7,6 +7,55 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [Unreleased]
 
+### Fixed
+- Channels with `active: false` are now correctly **disabled** in Home
+  Assistant instead of being deleted. The runtime diff in `coordinator`
+  detected active-flips via `added & removed`, which is always empty (the two
+  sets are disjoint by construction), so flipping a channel to `active: false`
+  removed its entity and registry entry instead of disabling it. Flips are now
+  detected on the device id alone.
+- `coordinator` registry sync no longer no-ops: it matched entries with
+  `async_get_entity_id(DOMAIN, DOMAIN, …)` (wrong entity domain), so the
+  disable/hide flags were never applied. Reconciliation now scans the registry
+  by `platform` + `unique_id`.
+- Cold start: a channel already set to `active: false` whose entity was
+  previously registered *enabled* is now disabled on the next snapshot
+  (`apply_active_registry_defaults` only affects brand-new registry entries).
+  A user who manually re-enables a disabled entity is no longer fought on every
+  steady-state snapshot — only freshly-seen and flipped ids are reconciled.
+
+## [0.1.3] — 2026-06-14
+
+### Changed
+- WebSocket keep-alive: client-side `heartbeat` and `receive_timeout` are
+  disabled. The gateway (server-side) drives the PINGs at 60s intervals.
+  This avoids a known aiohttp 3.13.5 client-PONG race (aio-libs/aiohttp#12030)
+  that caused a reconnect every 30s in simulated mode.
+- Reconnect backoff capped at 5s (was 30s) and a ±20% jitter is applied to
+  each sleep so simultaneous gateway restarts don't produce a thundering
+  herd of reconnects.
+- `_receive_loop` now distinguishes graceful server-initiated closes
+  (DEBUG log) from real errors (WARNING), so the HA log stays readable
+  during normal keep-alive cycles.
+
+### Notes
+- Gateway must also be updated: `gateway_api.py` heartbeat raised 30 → 60.
+
+## [0.1.2] — 2026-06-14
+
+### Added
+- Shared `entity.apply_active_registry_defaults` helper. Channels reported by
+  the gateway with `active: false` (e.g. relays that are wired-up but not yet
+  configured) are now registered in Home Assistant as
+  `entity_registry_enabled_default=False` and
+  `entity_registry_visible_default=False`, matching the HA-IPBuilding button
+  pattern. The operator enables them from Instellingen → Apparaten & entiteiten
+  when the wiring is done.
+
+### Changed
+- Requires the IPBuilding Gateway add-on to expose inactive channels in its
+  `GET /api/v1/devices` and WebSocket `snapshot.devices` response.
+
 ## [0.1.1] — 2026-06-12
 
 ### Fixed

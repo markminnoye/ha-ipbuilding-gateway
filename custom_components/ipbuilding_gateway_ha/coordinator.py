@@ -22,8 +22,9 @@ from .const import (
     CONF_API_HOST,
     DEFAULT_API_PORT,
     DOMAIN,
-    RECONNECT_BASE_DELAY,
     RECONNECT_BACKOFF_MULT,
+    RECONNECT_BASE_DELAY,
+    RECONNECT_JITTER,
     RECONNECT_MAX_DELAY,
 )
 
@@ -56,6 +57,18 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._listeners: dict[str, list[Callable[[dict], None]]] = {}
         self._lock = asyncio.Lock()
         self._data: dict[str, Any] = {}
+        # Snapshot-driven dynamic entity lifecycle: (device_id, active) pairs
+        # last seen, used to detect new/removed/flipped channels.
+        self._known_devices: set[tuple[str, bool]] = set()
+        # Debounce: coalesce burst of snapshot messages (e.g. WS reconnect)
+        # into a single diff pass.
+        self._diff_timer: asyncio.TimerHandle | None = None
+        # Platforms (light/switch/sensor) call register_platform() so the
+        # coordinator can ask them to add or remove entities when the snapshot
+        # changes. Each entry: {platform -> {device_id -> [entity]}}.
+        self._platform_callbacks: dict[str, Callable[[list[dict]], None]] = {}
+        self._platform_entities: dict[str, dict[str, list[Any]]] = {}
+        self._entry = entry
         super().__init__(hass, log, name=DOMAIN)
 
     @property
@@ -92,10 +105,18 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         try:
             self._ws_session = aiohttp.ClientSession()
+            # ``receive_timeout=None`` and ``heartbeat=None`` on the client:
+            # aiohttp 3.13.5 (HA Core 2026.x ships it) has a known race where
+            # the client heartbeat task sometimes consumes a PONG that should
+            # have been delivered to receive(), causing the receive loop to
+            # timeout and tear the connection down every 30s
+            # (aio-libs/aiohttp#12030, fixed in 3.14.0). The gateway now owns
+            # the keep-alive (heartbeat=60 in gateway_api.py), so we let the
+            # client sit idle and trust the server's PINGs.
             self._ws = await self._ws_session.ws_connect(
                 self._ws_url,
-                receive_timeout=30.0,
-                heartbeat=30.0,
+                receive_timeout=None,
+                heartbeat=None,
             )
             self._ws_connected.set()
             self._reconnect_delay = RECONNECT_BASE_DELAY
@@ -148,9 +169,20 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self._close_ws_session()
 
     async def _reconnect_loop(self) -> None:
-        """Attempt to reconnect with exponential backoff."""
+        """Attempt to reconnect with exponential backoff + jitter.
+
+        On a successful connect the delay is reset to ``RECONNECT_BASE_DELAY``
+        in :meth:`_async_connect` so the next disconnect starts fresh.
+        """
         while not self._stop_event.is_set():
-            await asyncio.sleep(self._reconnect_delay)
+            # Apply ±RECONNECT_JITTER spread so multiple clients don't all
+            # retry at the same instant after a gateway restart.
+            delay = self._reconnect_delay * (
+                1.0
+                + RECONNECT_JITTER
+                * (2 * (asyncio.get_running_loop().time() % 1) - 1)
+            )
+            await asyncio.sleep(max(0.0, delay))
             if self._stop_event.is_set():
                 break
             if await self._async_connect():
@@ -163,24 +195,41 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
     async def _receive_loop(self) -> None:
-        """Receive and process WebSocket messages."""
+        """Receive and process WebSocket messages.
+
+        Distinguishes three close paths so the HA log doesn't fill with
+        ``WS receive error:`` lines every keep-alive cycle:
+
+        1. ``WSMsgType.CLOSE`` / ``CLOSED`` — server- or peer-initiated
+           graceful close → log at DEBUG.
+        2. ``aiohttp.ClientConnectionError`` from ``receive()`` — usually a
+           server-closed socket without a close frame → log at DEBUG.
+        3. Anything else (real exception, ``WSMsgType.ERROR`` with an
+           attached exception) → log at WARNING.
+        """
         while True:
             if self._ws is None:
                 break
             try:
                 msg = await self._ws.receive()
+            except aiohttp.ClientConnectionError as exc:
+                log.debug("WS connection closed by server: %s", exc)
+                break
             except Exception as exc:
                 log.warning("WS receive error: %s", exc)
                 break
 
             if msg.type == aiohttp.WSMsgType.TEXT:
                 await self._handle_message(msg.data)
-            elif msg.type in (
-                aiohttp.WSMsgType.CLOSE,
-                aiohttp.WSMsgType.CLOSED,
-                aiohttp.WSMsgType.ERROR,
-            ):
-                log.warning("WS connection ended: %s", msg.type)
+            elif msg.type in (aiohttp.WSMsgType.CLOSE, aiohttp.WSMsgType.CLOSED):
+                log.debug("WS closed (type=%s)", msg.type)
+                break
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                err = self._ws.exception() if self._ws is not None else None
+                if err is None:
+                    log.debug("WS error frame without exception (graceful)")
+                    break
+                log.warning("WS error: %s", err)
                 break
 
         await self._close_ws_session()
@@ -205,19 +254,26 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if msg_type == "snapshot":
             # New format: snapshot contains both modules and devices.
             # The companion only needs devices for entity state.
+            #
+            # NOTE: we deliberately do NOT call ``self.async_set_updated_data``
+            # here. That method notifies HA's built-in coordinator listeners
+            # (0-arg callbacks registered via ``async_add_listener``). Our
+            # entity platforms manage their own updates through
+            # ``_notify_all`` / ``_notify`` (1-arg callbacks). Calling both
+            # would trip the built-in listener path with the wrong arity.
             devices = data.get("devices", [])
             self._data = {dev["id"]: dev for dev in devices}
-            self.async_set_updated_data(self._data)
             self._notify_all(devices)
+            self._schedule_diff(devices)
         elif msg_type == "device_list":
             # Legacy format kept for backward compatibility.
-            self._data = {dev["id"]: dev for dev in data.get("devices", [])}
-            self.async_set_updated_data(self._data)
-            self._notify_all(data.get("devices", []))
+            devices = data.get("devices", [])
+            self._data = {dev["id"]: dev for dev in devices}
+            self._notify_all(devices)
+            self._schedule_diff(devices)
         elif msg_type == "state_changed":
             entity_id = data.get("id", "")
             self._data[entity_id] = dict(self._data.get(entity_id, {}), **data)
-            self.async_set_updated_data(self._data)
             self._notify(entity_id, data)
         elif msg_type == "button_event":
             # Button events go to all button entities; route by hardware id
@@ -245,6 +301,198 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 cb(data)
             except Exception:
                 log.exception("Button listener error")
+
+    # -------------------------------------------------------------------------
+    # Dynamic entity lifecycle
+    # -------------------------------------------------------------------------
+
+    def register_platform(
+        self,
+        platform: str,
+        add_callback: Callable[[list[dict]], None],
+    ) -> Callable[[], None]:
+        """Register a platform's dynamic-entity callback.
+
+        ``add_callback`` receives a list of *new* device dicts each time a
+        snapshot diff produces additions. The platform is responsible for
+        creating entities (and tracking them via :meth:`track_platform_entity`
+        so the coordinator can remove them later).
+        """
+        self._platform_callbacks[platform] = add_callback
+        self._platform_entities.setdefault(platform, {})
+
+        def _unregister() -> None:
+            self._platform_callbacks.pop(platform, None)
+            self._platform_entities.pop(platform, None)
+
+        return _unregister
+
+    def track_platform_entity(self, platform: str, device_id: str, entity: Any) -> None:
+        """Record a platform entity so it can be removed on snapshot diff."""
+        self._platform_entities.setdefault(platform, {}).setdefault(device_id, []).append(entity)
+
+    def _schedule_diff(self, devices: list[dict]) -> None:
+        """Coalesce snapshot bursts into a single debounced diff pass.
+
+        Without debouncing a WS reconnect could trigger N snapshot frames in
+        a second and the diff machinery would run for each one, possibly
+        bouncing entity registry entries on every frame.
+        """
+        if self._diff_timer is not None:
+            self._diff_timer.cancel()
+        loop = asyncio.get_running_loop()
+        self._diff_timer = loop.call_later(
+            2.0, lambda: asyncio.ensure_future(self._apply_diff(devices))
+        )
+
+    async def _apply_diff(self, devices: list[dict]) -> None:
+        """Reconcile entity registry + platforms with the latest snapshot.
+
+        Three classes of change are handled:
+
+        * **Genuine additions** — an ``id`` not seen before → ask each platform
+          to create entities for it.
+        * **Genuine removals** — an ``id`` that disappeared from
+          ``devices.json`` → remove its entities and registry entries.
+        * **Active flips / cold-start** — an ``id`` whose ``active`` flag
+          changed, *or* a device that re-appears on the first snapshot already
+          set to ``active: false`` → toggle the entity-registry
+          disabled/hidden flags instead of deleting anything.
+        """
+        self._diff_timer = None
+        new_pairs = {(d["id"], bool(d.get("active", True))) for d in devices if d.get("id")}
+
+        added_pairs = new_pairs - self._known_devices
+        removed_pairs = self._known_devices - new_pairs
+
+        added_ids = {dev_id for (dev_id, _active) in added_pairs}
+        removed_ids = {dev_id for (dev_id, _active) in removed_pairs}
+
+        # Set-difference can never place the same ``(id, active)`` pair in both
+        # ``added_pairs`` and ``removed_pairs``, so an active *flip* shows up as
+        # the *id* appearing in both sets. Detect flips on the id alone.
+        flipped_ids = added_ids & removed_ids
+        truly_added_ids = added_ids - flipped_ids
+        truly_removed_ids = removed_ids - flipped_ids
+
+        # Build device-id-keyed lookups for callbacks.
+        devices_by_id = {d["id"]: d for d in devices if d.get("id")}
+
+        # 1. Additions → ask each platform to create entities for new ids.
+        if truly_added_ids:
+            additions = [
+                devices_by_id[dev_id]
+                for dev_id in truly_added_ids
+                if dev_id in devices_by_id
+            ]
+            for _platform, cb in self._platform_callbacks.items():
+                # Each platform filters to the device types it can render.
+                cb(additions)
+
+        # 2. Removals → remove platform entities; clear from registry.
+        for dev_id in truly_removed_ids:
+            await self._remove_device_entities(dev_id)
+            self._remove_registry_entry(dev_id)
+
+        # 3. Flips + cold-start → reconcile disabled/hidden flags. We only
+        #    reconcile ids that just appeared (cold-start) or flipped, so a
+        #    user who manually re-enables a disabled entity is not fought on
+        #    every steady-state snapshot.
+        reconcile_ids = truly_added_ids | flipped_ids
+        if reconcile_ids:
+            self._reconcile_active(
+                [devices_by_id[i] for i in reconcile_ids if i in devices_by_id]
+            )
+
+        self._known_devices = new_pairs
+
+    async def _remove_device_entities(self, device_id: str) -> None:
+        """Remove all tracked platform entities for ``device_id`` from HA."""
+        for _platform, by_id in self._platform_entities.items():
+            for entity in by_id.pop(device_id, []):
+                if getattr(entity, "hass", None) is None:
+                    # Entity was never added to HA (e.g. setup failed for this
+                    # platform during the previous run). Skip — there is
+                    # nothing to remove and async_remove would crash with
+                    # "'NoneType' object has no attribute 'loop'".
+                    log.debug(
+                        "Skipping remove for %s: entity not registered with HA",
+                        device_id,
+                    )
+                    continue
+                try:
+                    await entity.async_remove(force_remove=True)
+                except TypeError:
+                    # Older HA without force_remove
+                    await entity.async_remove()
+                except Exception:
+                    log.exception("Failed to remove entity for %s", device_id)
+
+    def _remove_registry_entry(self, device_id: str) -> None:
+        """Remove any HA entity_registry entry for ``device_id`` (best-effort)."""
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        for reg_entry in list(registry.entities.values()):
+            if reg_entry.unique_id == device_id or reg_entry.unique_id == f"{device_id}_power":
+                registry.async_remove(reg_entry.entity_id)
+
+    def _reconcile_active(self, devices: list[dict]) -> None:
+        """Sync entity-registry disabled/hidden flags with ``active`` flags.
+
+        For every device passed in, the matching registry entries (the bare
+        device id used by light/switch and the ``<id>_power`` id used by the
+        power sensor) are disabled+hidden when ``active`` is false, and the
+        integration-applied disable/hide is cleared again when it is true.
+
+        A single pass over the registry keeps this O(registry size) instead of
+        O(devices × registry size).
+        """
+        from homeassistant.helpers import entity_registry as er
+
+        active_by_uid: dict[str, bool] = {}
+        for dev in devices:
+            dev_id = dev.get("id")
+            if not dev_id:
+                continue
+            active = bool(dev.get("active", True))
+            active_by_uid[dev_id] = active
+            active_by_uid[f"{dev_id}_power"] = active
+
+        if not active_by_uid:
+            return
+
+        registry = er.async_get(self.hass)
+        for reg_entry in list(registry.entities.values()):
+            if reg_entry.platform != DOMAIN:
+                continue
+            active = active_by_uid.get(reg_entry.unique_id)
+            if active is None:
+                continue
+
+            update_kwargs: dict[str, Any] = {}
+            if not active:
+                # Only set our own marker; never clobber a USER-set disable.
+                if reg_entry.disabled_by is None:
+                    update_kwargs["disabled_by"] = er.RegistryEntryDisabler.INTEGRATION
+                if reg_entry.hidden_by is None:
+                    update_kwargs["hidden_by"] = er.RegistryEntryHider.INTEGRATION
+            else:
+                # Only clear what the integration disabled/hid, so a user's
+                # explicit "hide this" is not undone silently.
+                if reg_entry.disabled_by is er.RegistryEntryDisabler.INTEGRATION:
+                    update_kwargs["disabled_by"] = None
+                if reg_entry.hidden_by is er.RegistryEntryHider.INTEGRATION:
+                    update_kwargs["hidden_by"] = None
+
+            if update_kwargs:
+                registry.async_update_entity(reg_entry.entity_id, **update_kwargs)
+                log.debug(
+                    "Reconciled %s (active=%s): %s",
+                    reg_entry.entity_id,
+                    active,
+                    update_kwargs,
+                )
 
     # -------------------------------------------------------------------------
     # Entity registration

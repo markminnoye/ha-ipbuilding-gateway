@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, SEMANTIC_TYPE_FAN, SEMANTIC_TYPE_PLUG, SEMANTIC_TYPE_SWITCH
 from .coordinator import IPBuildingCoordinator
+from .entity import apply_active_registry_defaults
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ class IPBuildingSwitch(SwitchEntity):
         self._attr_unique_id = device["id"]
         self._attr_device_info = _make_device_info(device)
         self._on_update: Callable[[dict], None] | None = None
+        apply_active_registry_defaults(self, device)
 
     async def async_added_to_hass(self) -> None:
         """Register for updates from the coordinator."""
@@ -90,9 +92,25 @@ async def async_setup_entry(
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
     devices = coordinator.data if isinstance(coordinator.data, dict) else {}
 
-    switches = []
-    for entity_id, device in devices.items():
-        if device.get("semantic_type") in _SWITCH_SEMANTIC_TYPES:
-            switches.append(IPBuildingSwitch(device, coordinator))
+    seen_unique_ids: set[str] = set()
 
-    async_add_entities(switches)
+    def _add(devices_to_add: list[dict]) -> None:
+        new_switches = []
+        for device in devices_to_add:
+            if device.get("semantic_type") not in _SWITCH_SEMANTIC_TYPES:
+                continue
+            sw = IPBuildingSwitch(device, coordinator)
+            if sw._attr_unique_id in seen_unique_ids:
+                continue
+            seen_unique_ids.add(sw._attr_unique_id)
+            new_switches.append(sw)
+        for sw in new_switches:
+            coordinator.track_platform_entity("switch", sw._entity_id, sw)
+        if new_switches:
+            async_add_entities(new_switches)
+
+    # Initial setup: also through _add so subsequent flip-to-active
+    # devices don't try to recreate already-registered entities.
+    _add(list(devices.values()))
+
+    coordinator.register_platform("switch", _add)

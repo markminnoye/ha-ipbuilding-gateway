@@ -35,11 +35,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
     await coordinator.stop()
-    await hass.config_entries.async_forward_entry_unload(
+    # Home Assistant 2026.x removed the variadic ``platforms`` argument from
+    # ``async_forward_entry_unload``; use ``async_unload_platforms`` instead.
+    return await hass.config_entries.async_unload_platforms(
         entry,
-        ["light", "switch", "button", "sensor"],
+        ("light", "switch", "button", "sensor"),
     )
-    return True
 
 
 async def _async_update_listener(

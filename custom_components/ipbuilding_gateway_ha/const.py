@@ -24,8 +24,11 @@ SEMANTIC_TYPE_SENSOR = "sensor"
 
 # WS reconnect delays (seconds)
 RECONNECT_BASE_DELAY = 1.0
-RECONNECT_MAX_DELAY = 30.0
+RECONNECT_MAX_DELAY = 5.0
 RECONNECT_BACKOFF_MULT = 2.0
+# Jitter (±) applied to each reconnect sleep to avoid thundering-herd
+# reconnects when the gateway restarts and several clients are waiting.
+RECONNECT_JITTER = 0.2
 
 # Polling interval for REST fallback (if WS unavailable)
-REST_POLL_INTERVAL = 30.0  # seconds
+REST_POLL_INTERVAL = 20.0  # seconds

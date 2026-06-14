@@ -20,6 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, SEMANTIC_TYPE_LIGHT
 from .coordinator import IPBuildingCoordinator
+from .entity import apply_active_registry_defaults
 
 log = logging.getLogger(__name__)
 
@@ -56,15 +57,16 @@ class IPBuildingLight(LightEntity):
         }
         # Entity description: name=None + has_entity_name=True makes HA derive
         # the displayed name from the device name in the device registry.
-        # original_icon is preserved here since LightEntityDescription still
-        # supports it in HA 2026.3.
+        # ``original_icon`` was removed from ``EntityDescription`` in
+        # Home Assistant 2026.3 — set the icon as a class attribute instead.
         self.entity_description = LightEntityDescription(
             key=device["id"],
             name=None,
-            original_icon="mdi:lightbulb",
         )
+        self._attr_icon = "mdi:lightbulb"
         # Store the update callback so the entity can be notified
         self._on_update: Callable[[dict], None] | None = None
+        apply_active_registry_defaults(self, device)
 
     async def async_added_to_hass(self) -> None:
         """Register for updates from the coordinator."""
@@ -125,9 +127,29 @@ async def async_setup_entry(
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
     devices = coordinator.data if isinstance(coordinator.data, dict) else {}
 
-    lights = []
-    for entity_id, device in devices.items():
-        if device.get("semantic_type") in _LIGHT_SEMANTIC_TYPES:
-            lights.append(IPBuildingLight(device, coordinator))
+    # Track unique_ids we've already added to HA. Re-firing ``async_add_entities``
+    # with the same unique_id makes Home Assistant log
+    # "does not generate unique IDs" and silently drop the new entity — which
+    # happens whenever a previously-inactive channel flips back to active.
+    seen_unique_ids: set[str] = set()
 
-    async_add_entities(lights)
+    def _add(devices_to_add: list[dict]) -> None:
+        new_lights = []
+        for device in devices_to_add:
+            if device.get("semantic_type") not in _LIGHT_SEMANTIC_TYPES:
+                continue
+            light = IPBuildingLight(device, coordinator)
+            if light._attr_unique_id in seen_unique_ids:
+                continue
+            seen_unique_ids.add(light._attr_unique_id)
+            new_lights.append(light)
+        for light in new_lights:
+            coordinator.track_platform_entity("light", light._entity_id, light)
+        if new_lights:
+            async_add_entities(new_lights)
+
+    # Initial setup: also go through _add so a subsequent flip-to-active
+    # for one of these devices doesn't try to recreate them.
+    _add(list(devices.values()))
+
+    coordinator.register_platform("light", _add)
