@@ -10,13 +10,17 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
+from homeassistant.components.button import ButtonEntity
 from homeassistant.components.event import EventEntity, EventEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
+from .entity import build_channel_device_info
+from .hub import gateway_device_info
 
 log = logging.getLogger(__name__)
 
@@ -74,6 +78,25 @@ class IPBuildingEventButton(EventEntity):
             )
 
 
+class IPBuildingDiscoverButton(ButtonEntity):
+    """Trigger a forced discovery sweep on the gateway."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Run discovery sweep"
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "discover_sweep"
+    _attr_icon = "mdi:radar"
+
+    def __init__(self, entry: ConfigEntry, coordinator: IPBuildingCoordinator) -> None:
+        self._coordinator = coordinator
+        self._attr_unique_id = f"{entry.entry_id}_discover"
+        self._attr_device_info = gateway_device_info(entry, coordinator)
+
+    async def async_press(self) -> None:
+        """Run POST /api/v1/discover on the gateway."""
+        await self._coordinator.async_trigger_discover()
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -87,6 +110,8 @@ async def async_setup_entry(
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
     devices = coordinator.data if isinstance(coordinator.data, dict) else {}
 
+    async_add_entities([IPBuildingDiscoverButton(entry, coordinator)])
+
     buttons = []
     for entity_id, device in devices.items():
         # Only create buttons for input channels.
@@ -94,12 +119,13 @@ async def async_setup_entry(
         if device_type == "input":
             hardware_id = device["id"]
             name = device.get("name")
-            device_info = {
-                "identifiers": {(DOMAIN, hardware_id)},
-                "name": name or f"Button {hardware_id}",
-                "manufacturer": "IPBuilding",
-                "model": "IP1100PoE",
-            }
+            # 3-tier device tree: button is a channel on the IP1100PoE input
+            # module. Uses the shared helper so model and via_device chain are
+            # consistent with light/switch/sensor. The helper falls back to
+            # `type` when no parent module is in the cache, which is fine
+            # while companion #4 (button→action wizard) is not yet shipped.
+            module = coordinator.module_for_channel(device)
+            device_info = build_channel_device_info(device, module)
             buttons.append(IPBuildingEventButton(hardware_id, name, coordinator, device_info))
 
     async_add_entities(buttons)

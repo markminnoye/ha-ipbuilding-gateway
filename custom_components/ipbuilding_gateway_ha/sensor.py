@@ -12,15 +12,67 @@ from typing import Any, Callable
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.components.sensor.const import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import UnitOfPower
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
-from .entity import apply_active_registry_defaults
+from .entity import apply_active_registry_defaults, build_channel_device_info
+from .hub import gateway_device_info
 
 log = logging.getLogger(__name__)
+
+_STATUS_ICONS = {
+    "ok": "mdi:check-circle",
+    "degraded": "mdi:alert",
+    "unhealthy": "mdi:alert-circle",
+}
+
+
+class IPBuildingGatewayStatusSensor(SensorEntity):
+    """Diagnostic sensor for aggregate gateway health."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Gateway status"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_translation_key = "gateway_status"
+
+    def __init__(self, entry: ConfigEntry, coordinator: IPBuildingCoordinator) -> None:
+        self._entry = entry
+        self._coordinator = coordinator
+        self._attr_unique_id = f"{entry.entry_id}_gateway_status"
+        self._attr_device_info = gateway_device_info(entry, coordinator)
+        self._on_update: Callable[[dict[str, Any]], None] | None = None
+
+    async def async_added_to_hass(self) -> None:
+        self._update_from_status(self._coordinator.gateway_status)
+
+        @callback
+        def _listener(status: dict[str, Any]) -> None:
+            self._update_from_status(status)
+            self.async_write_ha_state()
+
+        self._on_update = _listener
+        self._coordinator.register_gateway_listener(_listener)
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._on_update is not None:
+            self._coordinator.unregister_gateway_listener(self._on_update)
+
+    def _update_from_status(self, status: dict[str, Any]) -> None:
+        self._attr_native_value = status.get("status", "unknown")
+        self._attr_icon = _STATUS_ICONS.get(str(self._attr_native_value), "mdi:help-circle")
+        self._attr_extra_state_attributes = {
+            "version": status.get("version"),
+            "updated_at": status.get("updated_at"),
+            "uptime_seconds": status.get("uptime_seconds"),
+            "subsystems": status.get("subsystems"),
+            "issues": status.get("issues"),
+        }
+        if status.get("version"):
+            self._attr_device_info = gateway_device_info(self._entry, self._coordinator)
 
 
 def _make_power_description(device: dict[str, Any]) -> SensorEntityDescription:
@@ -62,12 +114,11 @@ class IPBuildingPowerSensor(SensorEntity):
         self._coordinator = coordinator
         self._entity_id = device["id"]
         self._attr_unique_id = f"{device['id']}_power"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device["id"])},
-            "name": device.get("name", device["id"]),
-            "manufacturer": "IPBuilding",
-            "model": device.get("device_type", "unknown"),
-        }
+        # Power sensor rolls up to the same parent module as the light/switch
+        # for this channel. Use the helper so the model and via_device chain
+        # stay in sync.
+        module = coordinator.module_for_channel(device)
+        self._attr_device_info = build_channel_device_info(device, module)
         self.entity_description = _make_power_description(device)
         self._attr_icon = "mdi:flash"
         self._on_update: Callable[[dict], None] | None = None
@@ -103,6 +154,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up power sensor entities from a config entry."""
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
+
+    hub_entities = [
+        IPBuildingGatewayStatusSensor(entry, coordinator),
+    ]
+    async_add_entities(hub_entities)
+
     devices = coordinator.data if isinstance(coordinator.data, dict) else {}
 
     seen_unique_ids: set[str] = set()

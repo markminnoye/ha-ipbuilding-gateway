@@ -7,6 +7,23 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-06-15
+
+### Fixed
+- The three field modules (`IP0200PoE`, `IP0300PoE`, `IP1100PoE`) now appear as devices in Home Assistant. The previous release relied on the `via_device` link to auto-create the module devices, but Home Assistant does not create a parent device from a `via_device` reference alone — a hub that fronts other devices must register them explicitly. The companion now fetches `GET /api/v1/modules` at setup and registers the gateway plus each module device, so the full gateway → module → channel tree is built even for modules whose channels are all inactive (e.g. the input module).
+
+## [0.2.0] — 2026-06-15
+
+### Changed
+- Companion now builds a 3-tier device tree: `IPBuilding Gateway` → per-module device (e.g. `IP0200PoE`) → per-channel entity. Channels reference their parent module via `via_device` (module devices are registered explicitly in v0.2.1).
+- Channel `device_info` now uses the parent module's product model (`IP0200PoE` / `IP0300PoE` / `IP1100PoE`) instead of the channel's `semantic_type` or `device_type`.
+- Tier-1 gateway device now shows `model="IPBuilding Gateway Software"` and `sw_version` from the gateway's `/api/v1/status` (issue #14).
+- Manifest metadata updated: `iot_class: local_push` (was `local_polling`), and added `quality_scale`, `issue_tracker`, `documentation`.
+- The companion coordinator now consumes the `modules` field from the WebSocket `snapshot` payload (previously dropped) and exposes it via a `modules` property plus a `module_for_channel` helper for the entity platforms.
+
+### Notes
+- Requires the IPBuilding Gateway add-on (or standalone gateway) to expose `modules` in its `GET /api/v1/modules` and WebSocket `snapshot` response. This is already shipped in the gateway repo.
+
 ## [0.1.5] — 2026-06-15
 
 ### Fixed

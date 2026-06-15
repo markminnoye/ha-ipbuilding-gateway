@@ -32,6 +32,19 @@
         "hardware_id": "Hardware ID",
         "action": "Actie"
       }
+    },
+    "discover_sweep": {
+      "name": "Discovery sweep starten"
+    }
+  },
+  "sensor": {
+    "gateway_status": {
+      "name": "Gateway status",
+      "state": {
+        "ok": "OK",
+        "degraded": "Gedegradeerd",
+        "unhealthy": "Ongezond"
+      }
     }
   }
 }

@@ -10,6 +10,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import random
 from typing import Any, Callable
 
 import aiohttp
@@ -57,6 +58,10 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._listeners: dict[str, list[Callable[[dict], None]]] = {}
         self._lock = asyncio.Lock()
         self._data: dict[str, Any] = {}
+        # Module metadata keyed by MAC, populated from the WebSocket `snapshot`
+        # `modules` field. Used by the 3-tier device tree (channel -> module
+        # -> gateway). Older `device_list` messages do not carry modules.
+        self._modules: dict[str, dict[str, Any]] = {}
         # Snapshot-driven dynamic entity lifecycle: (device_id, active) pairs
         # last seen, used to detect new/removed/flipped channels.
         self._known_devices: set[tuple[str, bool]] = set()
@@ -69,7 +74,34 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._platform_callbacks: dict[str, Callable[[list[dict]], None]] = {}
         self._platform_entities: dict[str, dict[str, list[Any]]] = {}
         self._entry = entry
+        self._gateway_status: dict[str, Any] = {}
+        self._gateway_listeners: list[Callable[[dict[str, Any]], None]] = []
         super().__init__(hass, log, name=DOMAIN)
+
+    @property
+    def api_host(self) -> str:
+        return self._host
+
+    @property
+    def api_port(self) -> int:
+        return self._port
+
+    @property
+    def gateway_status(self) -> dict[str, Any]:
+        return self._gateway_status
+
+    @property
+    def modules(self) -> dict[str, dict[str, Any]]:
+        """Return cached module metadata keyed by MAC."""
+        return dict(self._modules)
+
+    def module_by_id(self, mac: str) -> dict[str, Any] | None:
+        """Return a module dict by MAC, or None if unknown."""
+        return self._modules.get(mac)
+
+    def module_for_channel(self, device: dict[str, Any]) -> dict[str, Any] | None:
+        """Return the parent module dict for a channel/button device."""
+        return self._modules.get(device.get("module_id", ""))
 
     @property
     def ws_url(self) -> str:
@@ -80,7 +112,12 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # -------------------------------------------------------------------------
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch device list via REST as a fallback when WS is unavailable."""
+        """Fetch gateway status and device list via REST as a fallback when WS is unavailable."""
+        await self.async_fetch_gateway_status()
+        # Populate module metadata so the device tree (gateway -> module ->
+        # channel) can be registered at setup time, independent of WS snapshot
+        # timing. The WS `snapshot` keeps `self._modules` fresh afterwards.
+        await self.async_fetch_modules()
         url = f"http://{self._host}:{self._port}/api/v1/devices"
         try:
             async with aiohttp.ClientSession() as session:
@@ -93,6 +130,102 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception as exc:
             log.debug("REST fallback failed: %s", exc)
             return []
+
+    async def async_fetch_modules(self) -> dict[str, dict[str, Any]]:
+        """Poll GET /api/v1/modules and cache the result keyed by MAC.
+
+        Used at setup to register the per-module devices (Tier 2) before the
+        WebSocket snapshot arrives. Returns the cached modules dict.
+        """
+        url = f"http://{self._host}:{self._port}/api/v1/modules"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        modules = data.get("modules", [])
+                        self._modules = {m["id"]: m for m in modules if m.get("id")}
+                    else:
+                        log.warning("Gateway modules returned %s", resp.status)
+        except Exception as exc:
+            log.debug("Gateway modules fetch failed: %s", exc)
+        return dict(self._modules)
+
+    async def async_fetch_gateway_status(self) -> dict[str, Any]:
+        """Poll GET /api/v1/status (fallback: /health for version only)."""
+        status_url = f"http://{self._host}:{self._port}/api/v1/status"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    status_url, timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        self._apply_gateway_status(data)
+                        return self._gateway_status
+                    log.warning("Gateway status returned %s", resp.status)
+        except Exception as exc:
+            log.debug("Gateway status fetch failed: %s", exc)
+
+        health_url = f"http://{self._host}:{self._port}/health"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    health_url, timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        self._apply_gateway_status({
+                            "status": data.get("status", "ok"),
+                            "version": data.get("version"),
+                            "issues": [],
+                            "subsystems": {},
+                        })
+                        return self._gateway_status
+        except Exception as exc:
+            log.debug("Gateway health fallback failed: %s", exc)
+        return self._gateway_status
+
+    async def async_trigger_discover(self) -> None:
+        """Run POST /api/v1/discover on the gateway."""
+        url = f"http://{self._host}:{self._port}/api/v1/discover"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url, timeout=aiohttp.ClientTimeout(total=120)
+                ) as resp:
+                    if resp.status != 200:
+                        log.warning("Discover sweep returned %s", resp.status)
+                    else:
+                        log.info("Discover sweep completed: %s", await resp.text())
+        except Exception as exc:
+            log.warning("Discover sweep failed: %s", exc)
+        await self.async_fetch_gateway_status()
+        self._notify_gateway()
+
+    def register_gateway_listener(
+        self, callback: Callable[[dict[str, Any]], None]
+    ) -> None:
+        """Register for gateway_status updates."""
+        self._gateway_listeners.append(callback)
+
+    def unregister_gateway_listener(
+        self, callback: Callable[[dict[str, Any]], None]
+    ) -> None:
+        """Unregister a gateway_status listener."""
+        with contextlib.suppress(ValueError):
+            self._gateway_listeners.remove(callback)
+
+    def _apply_gateway_status(self, data: dict[str, Any]) -> None:
+        """Store gateway status payload (REST or WS)."""
+        self._gateway_status = {k: v for k, v in data.items() if k != "type"}
+
+    def _notify_gateway(self) -> None:
+        for cb in self._gateway_listeners:
+            try:
+                cb(self._gateway_status)
+            except Exception:
+                log.exception("Gateway status listener error")
 
     # -------------------------------------------------------------------------
     # WebSocket lifecycle
@@ -176,12 +309,12 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         while not self._stop_event.is_set():
             # Apply ±RECONNECT_JITTER spread so multiple clients don't all
-            # retry at the same instant after a gateway restart.
-            delay = self._reconnect_delay * (
-                1.0
-                + RECONNECT_JITTER
-                * (2 * (asyncio.get_running_loop().time() % 1) - 1)
-            )
+            # retry at the same instant after a gateway restart. random.uniform
+            # is independent per coordinator instance (different HA integrations,
+            # different gateway hosts), unlike a clock-derived value which is
+            # ~identical for clients that dropped at the same moment.
+            jitter = random.uniform(-RECONNECT_JITTER, RECONNECT_JITTER)
+            delay = self._reconnect_delay * (1.0 + jitter)
             await asyncio.sleep(max(0.0, delay))
             if self._stop_event.is_set():
                 break
@@ -261,6 +394,13 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # entity platforms manage their own updates through
             # ``_notify_all`` / ``_notify`` (1-arg callbacks). Calling both
             # would trip the built-in listener path with the wrong arity.
+            if gateway_status := data.get("gateway_status"):
+                self._apply_gateway_status(gateway_status)
+                self._notify_gateway()
+            # Track per-MAC module metadata for the 3-tier device tree. Older
+            # `snapshot` payloads did not include `modules`; the empty-dict
+            # fallback preserves existing behaviour.
+            self._modules = {m["id"]: m for m in data.get("modules", [])}
             devices = data.get("devices", [])
             self._data = {dev["id"]: dev for dev in devices}
             self._notify_all(devices)
@@ -278,6 +418,12 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         elif msg_type == "button_event":
             # Button events go to all button entities; route by hardware id
             self._notify_button(data)
+        elif msg_type == "gateway_status":
+            self._apply_gateway_status(data)
+            self._notify_gateway()
+        elif msg_type == "discovery_completed":
+            await self.async_fetch_gateway_status()
+            self._notify_gateway()
         else:
             log.debug("Unknown WS message type: %s", msg_type)
 

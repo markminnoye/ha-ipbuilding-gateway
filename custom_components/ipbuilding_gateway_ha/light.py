@@ -21,7 +21,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, SEMANTIC_TYPE_LIGHT
 from .coordinator import IPBuildingCoordinator
-from .entity import apply_active_registry_defaults
+from .entity import apply_active_registry_defaults, build_channel_device_info
 
 log = logging.getLogger(__name__)
 
@@ -49,12 +49,12 @@ class IPBuildingLight(LightEntity):
         # Dimmer modules use DIM commands on the gateway; relays use ON/OFF.
         self._is_dimmer: bool = device.get("device_type") == "dimmer"
         self._attr_unique_id = device["id"]
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, device["id"])},
-            "name": device.get("name", device["id"]),
-            "manufacturer": "IPBuilding",
-            "model": device.get("semantic_type", "light"),
-        }
+        # 3-tier device tree: channel rolls up to its parent module via
+        # via_device. Module-device is created implicitly by HA on first
+        # reference. The module's product model (e.g. "IP0200PoE") takes
+        # priority over the channel's semantic_type (e.g. "light").
+        module = coordinator.module_for_channel(device)
+        self._attr_device_info = build_channel_device_info(device, module)
         # Entity description: name=None + has_entity_name=True makes HA derive
         # the displayed name from the device name in the device registry.
         # ``original_icon`` was removed from ``EntityDescription`` in

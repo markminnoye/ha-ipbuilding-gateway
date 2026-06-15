@@ -32,6 +32,19 @@
         "hardware_id": "Hardware ID",
         "action": "Action"
       }
+    },
+    "discover_sweep": {
+      "name": "Run discovery sweep"
+    }
+  },
+  "sensor": {
+    "gateway_status": {
+      "name": "Gateway status",
+      "state": {
+        "ok": "OK",
+        "degraded": "Degraded",
+        "unhealthy": "Unhealthy"
+      }
     }
   }
 }

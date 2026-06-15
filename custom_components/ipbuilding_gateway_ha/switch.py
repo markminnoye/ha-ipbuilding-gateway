@@ -16,21 +16,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, SEMANTIC_TYPE_FAN, SEMANTIC_TYPE_PLUG, SEMANTIC_TYPE_SWITCH
 from .coordinator import IPBuildingCoordinator
-from .entity import apply_active_registry_defaults
+from .entity import apply_active_registry_defaults, build_channel_device_info
 
 log = logging.getLogger(__name__)
 
 _SWITCH_SEMANTIC_TYPES = {SEMANTIC_TYPE_SWITCH, SEMANTIC_TYPE_PLUG, SEMANTIC_TYPE_FAN}
-
-
-def _make_device_info(device: dict[str, Any]) -> dict[str, Any]:
-    """Build device_info dict from a device dict."""
-    return {
-        "identifiers": {(DOMAIN, device["id"])},
-        "name": device.get("name", device["id"]),
-        "manufacturer": "IPBuilding",
-        "model": device.get("device_type", "unknown"),
-    }
 
 
 class IPBuildingSwitch(SwitchEntity):
@@ -49,7 +39,11 @@ class IPBuildingSwitch(SwitchEntity):
         self._entity_id = device["id"]
         self._is_dimmer: bool = device.get("device_type") == "dimmer"
         self._attr_unique_id = device["id"]
-        self._attr_device_info = _make_device_info(device)
+        # 3-tier device tree: channel rolls up to its parent module via
+        # via_device. The module's product model (e.g. "IP0200PoE") takes
+        # priority over the channel's device_type or semantic_type.
+        module = coordinator.module_for_channel(device)
+        self._attr_device_info = build_channel_device_info(device, module)
         self._on_update: Callable[[dict], None] | None = None
         apply_active_registry_defaults(self, device)
 
