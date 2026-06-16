@@ -5,20 +5,49 @@ Alle notable wijzigingen aan deze custom component worden hier gedocumenteerd.
 Het format is gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/),
 en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
+Versies lopen gelijk met de **IPBuilding Gateway** add-on (`ipbuilding_gateway`)
+zodat add-on + companion als één versienummer te volgen zijn.
+
 ## [Unreleased]
 
 ## [0.3.0] — 2026-06-16
 
+Bundelrelease: alles sinds **0.1.0** (plus wijzigingen die alleen onder
+0.1.1–0.2.2 stonden) zit in deze versie. Tussenliggende tags zijn niet
+allemaal als aparte release gepubliceerd — upgrade in één stap naar
+**v0.3.0** samen met add-on **v0.3.0**.
+
 ### Added
-- The integration now appears in **Instellingen → Apparaten & Diensten → Ontdekt** (same UX as Shelly, ESPHome, Music Assistant). On HA OS the add-on uses Supervisor discovery; on a standalone gateway the broadcast over mDNS (`_ipbgw._tcp.local.`) is picked up. Both channels are deduplicated automatically so the operator only sees a single entry.
+- De integratie verschijnt in **Instellingen → Apparaten & Diensten → Ontdekt** (zelfde UX als Shelly, ESPHome, Music Assistant). Op HA OS via Supervisor-discovery; bij een standalone gateway via mDNS (`_ipbgw._tcp.local.`). Beide paden worden gededupliceerd tot één vermelding.
+- **Gateway status sensor** (diagnostisch): toont `ok` / `degraded` / `unhealthy`, versie, uptime en open issues van de gateway. Werkt via `GET /api/v1/status` en live WebSocket-updates.
+- **Discovery sweep-knop** op het gateway-apparaat: start een geforceerde veldbus-scan (`POST /api/v1/discover`) vanuit Home Assistant.
+- Inactieve kanalen (`active: false`) verschijnen als uitgeschakelde, verborgen entiteiten — inschakelen via **Instellingen → Apparaten & entiteiten** wanneer de bedrading klaar is (sinds 0.1.2).
+- Dashboard-voorbeeld (`dashboard.md`) met Lovelace-glance, discover-knop en issues-kaart.
 
 ### Changed
-- Config flow rewritten along the Music Assistant pattern. Discovery is now done by dedicated `async_step_hassio` and `async_step_zeroconf` handlers with explicit confirmation steps, instead of the previous silent auto-create in the manual step. The manual step remains as a fallback for remote or unreachable setups.
+- Config flow herschreven naar het Music Assistant-patroon: aparte `hassio`- en `zeroconf`-stappen met bevestiging; handmatige host/poort blijft fallback.
+- **Apparaatboom in drie lagen:** IPBuilding Gateway → module (Relay / Dimmer / Input) → kanaal-entiteit. Modules worden expliciet geregistreerd; `sw_version` komt van de gateway-status-API.
+- Kanaal-apparaten tonen **Relay** / **Dimmer** / **Input** i.p.v. hardware-SKU in de UI; hardwaremodel blijft op het module-apparaat.
+- Kamers uit `devices.json` (`room`) worden als **suggested area** voorgesteld bij onboarding; bestaande handmatige area-toewijzingen worden niet overschreven.
+- Passende iconen voor lights en switches (dimmer, lamp, ventilator, stopcontact, …).
+- WebSocket-verbinding rustiger: server-side keep-alive 60 s, kortere reconnect-backoff, minder ruis in het HA-log bij normale cycli.
+- Add-on en companion worden in lockstep uitgebracht op hetzelfde versienummer.
 
 ### Fixed
-- The Discovered entry now actually shows up. An earlier draft of the zeroconf flow tried to read host and port from the TXT record properties, but Home Assistant puts those on the SRV/A-record instead (as `ZeroconfServiceInfo.host` and `.port`). The parser now uses the SRV values as the source of truth and only falls back to the TXT for back-compat with older gateways. Without this fix, the discovery log showed `Invalid zeroconf payload ('host or port missing from zeroconf properties')` and nothing reached the Discovered list, even though the broadcast itself was correct.
+- **Ontdekt-lijst werkt:** zeroconf-parser gebruikt SRV host/poort (niet alleen TXT); zonder deze fix verscheen er niets in Ontdekt ondanks een correcte broadcast.
+- **Dimmers werken:** licht- en switch-entiteiten sturen `DIM` i.p.v. `ON`/`OFF`; helderheid uit de service call of laatste bekende niveau.
+- **Inactieve kanalen:** `active: false` schakelt entiteiten uit i.p.v. ze te verwijderen; registry-sync past disable/hide correct toe.
+- **Power-sensors:** geen dubbele apparaatnaam meer in de weergavenaam (bijv. `sensor.achterdeur_licht_power` i.p.v. dubbeling).
+- Home Assistant **2026.3**-compatibiliteit voor dimmer `color_modes` en entity naming.
+- Vertalingen en manifest voldoen aan hassfest/HACS (schema `strings.json`, repo-topics).
+
+### Notes
+- Installeer **companion v0.3.0** en **add-on v0.3.0** samen. Vanaf **0.1.0** is dit de enige upgrade-stap die je nodig hebt.
+- Vereist een gateway die `modules` en status in de API/ WebSocket exposeert (add-on v0.3.0).
 
 ## [0.2.2] — 2026-06-15
+
+> Opgenomen in **[0.3.0]** hierboven.
 
 ### Changed
 - Module and channel devices now show **Relay** / **Dimmer** / **Input** instead of the hardware SKU (`IP0200PoE`, `IP0300PoE`, `IP1100PoE`) in Apparaat-info and the “Verbonden via …” chain. The hardware model remains on the parent module device's `model` field; operator-configured module names in `devices.json` are still respected (issue #2 follow-up).
@@ -27,10 +56,14 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [0.2.1] — 2026-06-15
 
+> Opgenomen in **[0.3.0]** hierboven.
+
 ### Fixed
 - The three field modules (`IP0200PoE`, `IP0300PoE`, `IP1100PoE`) now appear as devices in Home Assistant. The previous release relied on the `via_device` link to auto-create the module devices, but Home Assistant does not create a parent device from a `via_device` reference alone — a hub that fronts other devices must register them explicitly. The companion now fetches `GET /api/v1/modules` at setup and registers the gateway plus each module device, so the full gateway → module → channel tree is built even for modules whose channels are all inactive (e.g. the input module).
 
 ## [0.2.0] — 2026-06-15
+
+> Opgenomen in **[0.3.0]** hierboven.
 
 ### Changed
 - Companion now builds a 3-tier device tree: `IPBuilding Gateway` → per-module device (e.g. `IP0200PoE`) → per-channel entity. Channels reference their parent module via `via_device` (module devices are registered explicitly in v0.2.1).
@@ -44,6 +77,8 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [0.1.5] — 2026-06-15
 
+> Opgenomen in **[0.3.0]** hierboven.
+
 ### Fixed
 - Power-sensor entities no longer have the device name embedded in the
   entity's display name. The previous `f"{name} Power"` description combined
@@ -54,6 +89,8 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
   clean `sensor.achterdeur_licht_power`.
 
 ## [0.1.4] — 2026-06-14
+
+> Opgenomen in **[0.3.0]** hierboven.
 
 ### Fixed
 - Dimmer light and switch entities now send `DIM` commands to the gateway
@@ -66,6 +103,8 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
   a `level` field in the initial snapshot.
 
 ## [0.1.3] — 2026-06-14
+
+> Opgenomen in **[0.3.0]** hierboven.
 
 ### Fixed
 - Channels with `active: false` are now correctly **disabled** in Home
@@ -101,6 +140,8 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [0.1.2] — 2026-06-14
 
+> Opgenomen in **[0.3.0]** hierboven.
+
 ### Added
 - Shared `entity.apply_active_registry_defaults` helper. Channels reported by
   the gateway with `active: false` (e.g. relays that are wired-up but not yet
@@ -116,6 +157,8 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [0.1.1] — 2026-06-12
 
+> Opgenomen in **[0.3.0]** hierboven.
+
 ### Fixed
 - Dimmer lights no longer declare both `BRIGHTNESS` and `ONOFF` in
   `supported_color_modes` — Home Assistant 2026.3 rejects that combination.
@@ -128,6 +171,8 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 
 ## [0.1.0] — 2026-06-05
 
+> Vervangen door **[0.3.0]** voor upgrades; bewaard als historie.
+
 ### Added
 - Eerste publicatie als zelfstandige HACS Integration
 - Light entities (relay ON/OFF + dimmer BRIGHTNESS)
@@ -139,7 +184,11 @@ en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
 - WebSocket-coordinator met automatische reconnect
 - Nederlandse en Engelse vertalingen
 
-[Unreleased]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.0...v0.3.0
+[0.2.2]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.2...v0.1.3

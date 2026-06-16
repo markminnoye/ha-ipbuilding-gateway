@@ -1,110 +1,186 @@
-# IPBuilding Gateway HA — Home Assistant Custom Component
+# Home Assistant integration for IPBuilding Gateway
 
-HA custom component voor de **ipbuilding-gateway** (Fase 3 product-API op `8080`).
+[![Version](https://img.shields.io/github/v/release/markminnoye/ipbuilding-gateway-ha)](https://github.com/markminnoye/ipbuilding-gateway-ha/releases/latest)
+[![License](https://img.shields.io/github/license/markminnoye/ipbuilding-gateway-ha)](LICENSE)
+[![Quality Scale](https://img.shields.io/badge/quality%20scale-bronze-brightgreen)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
 
-## Installatie (HACS)
+Control your **IPBuilding** field bus from Home Assistant through the open
+**IPBuilding Gateway** — relays, dimmers, and physical buttons on the
+UDP/1001 bus, without the proprietary IPBox REST API or cloud services.
 
-1. Voeg toe als **custom repository** in HACS:
-   `https://github.com/markminnoye/IPBuilding-Gateway`
-2. Zoek naar **IPBuilding Gateway HA** en installeer
-3. Herstart Home Assistant
-4. De integratie verschijnt nu vanzelf onder **Instellingen → Apparaten & diensten → Ontdekt** zodra de gateway (add-on of standalone) draait. Klik **Toevoegen** om te koppelen.
-   - Werkt dat niet (mDNS geblokkeerd, andere VLAN, …)? Kies dan handmatig **Integratie toevoegen → IPBuilding Gateway HA** en vul host + poort (`8080`) zelf in.
+Scenes, automations, and button-to-action logic belong in **Home Assistant**,
+not in the gateway. The gateway is a thin field-bus hub; this companion turns
+its northbound WebSocket API into standard HA entities.
 
-## Architectuur
+## How it works
 
-```
-IPBuilding veldbus (UDP/1001)
-  └── ipbuilding-gateway (Python)
-        ├── REST :30200  (IPBox shim — transitie, Fase 1-2; disabled by default)
-        ├── WebSocket /ws  (product northbound, Fase 3)  ←── ipbuilding-gateway-ha
-        └── REST /api/v1/  (product northbound, Fase 3)
-  └── ipbuilding-gateway-ha (HA custom component)
-        ├── WebSocket-client (coordinator)
-        └── HA entities:
-              ├── light      (relay ONOFF + dimmer BRIGHTNESS)
-              ├── switch     (relay/dimmer met semantic_type switch/plug/fan)
-              ├── button     (IP1100PoE fysieke knop → HA events)
-              └── sensor     (current_watt per kanaal)
-```
+This integration talks to the [**IPBuilding Gateway**](https://github.com/markminnoye/IPBuilding-Gateway)
+add-on (or a standalone gateway) on port **8080** via WebSocket and REST.
+The gateway replaces the IPBox as the **hub on the field bus** (UDP/1001 to
+IP0200PoE relays, IP0300PoE dimmers, and IP1100PoE inputs). IPBuilding
+modules are not contacted directly from Home Assistant.
 
-## Auto-detectie
+> **Requirement:** A running IPBuilding Gateway reachable from Home Assistant
+> (typically the HA add-on on the same host, or a gateway on your IPBuilding
+> VLAN). Install **add-on and companion at the same version** (currently
+> **v0.3.0**).
 
-De companion maakt de gateway op twee manieren vindbaar in **Instellingen → Apparaten & diensten → Ontdekt** (zelfde patroon als Shelly, ESPHome en Music Assistant):
+## Features
 
-| Deployment | Kanaal | Wat er gebeurt |
-|------------|--------|----------------|
-| HA add-on op HA OS / Supervised | **Supervisor discovery** | De add-on `POST /supervisor/discovery` bij opstart → Supervisor geeft het door aan Home Assistant. Geen multicast nodig. |
-| Standalone Docker / Pi op het LAN | **Zeroconf / mDNS** | Gateway broadcast `_ipbgw._tcp.local.`. Werkt alleen op een plat LAN (geen VLAN-reflector) en met host networking. |
-| Beide | Dedup | Een add-on stuurt *beide* kanalen; de Zeroconf-route bevat `homeassistant_addon=true` zodat de companion dubbele entries voorkomt. |
+- **Auto-discovery** in **Settings → Devices & Services → Discovered**
+  (Supervisor discovery when the add-on runs on HA OS; mDNS `_ipbgw._tcp.local.`
+  for standalone gateways)
+- **Lights** — relays (on/off) and dimmers (brightness)
+- **Switches** — relays/dimmers with semantic types (plug, fan, …)
+- **Sensors** — per-channel power (`current_watt`) and gateway health status
+- **Buttons** — physical IP1100PoE presses as HA events; gateway discovery
+  sweep as a config button on the hub device
+- **Three-tier device tree** — Gateway → module (Relay / Dimmer / Input) →
+  channel entity, with optional room → HA area mapping from `devices.json`
+- English and Dutch UI translations
 
-```
-HA add-on draait                    Companion geïnstalleerd
-        │                                       │
-        ├─ POST /supervisor/discovery           │
-        │      service=ipbuilding_gateway_ha     │
-        ▼                                       ▼
-Supervisor ──push──►  Home Assistant  ◄──mDNS──── gateway
-                          │
-                          ▼
-                 Ontdekt-lijst: "IPBuilding Gateway HA"
-                          │
-                          ▼  klik "Toevoegen"
-                Bevestiging → config entry
-```
+Platforms created by this integration: `light`, `switch`, `button`, `sensor`.
 
-Wanneer geen ontdekking mogelijk is (mDNS geblokkeerd, remote, …) blijft de handmatige setup beschikbaar via **Integratie toevoegen → IPBuilding Gateway HA**.
+## Requirements {#prerequisites}
 
-## Entity ID formaat
+- Home Assistant **2023.8** or newer (tested with **2026.3** for dimmer
+  `color_modes`)
+- [**IPBuilding Gateway**](https://github.com/markminnoye/IPBuilding-Gateway)
+  **v0.3.0** (add-on or standalone) with WebSocket `/ws` and REST `/api/v1/`
+  on port **8080**
+- Network path from Home Assistant to the gateway API (host networking /
+  VLAN routing as required by your install)
+- A populated `devices.json` on the gateway (from discovery or migration)
 
-De companion gebruikt het gateway entity-ID:
-```
-{module_ip}:{device_type}:{channel}
-Bijv. "10.10.1.30:relay:0"
-```
+## Installation
 
-## Knoppen (button events)
+Install the **gateway** and **companion** together. Version numbers are kept
+in lockstep.
 
-Knop events van de IP1100PoE verschijnen als HA events:
-- Event type: `ipbuilding_gateway_ha.button_pressed`
-- Data: `{"hardware_id": "2DE341851900001F", "action": "press"}`
+### 1. Gateway add-on (HA OS / Supervised)
 
-Gebruik in automations:
-```yaml
-trigger:
-  platform: event
-  event_type: ipbuilding_gateway_ha.button_pressed
-  event_data:
-    hardware_id: "2DE341851900001F"
-```
+[![Add add-on repository](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2FIPBuilding-Gateway)
 
-## Commandos sturen
+See the [add-on documentation](https://github.com/markminnoye/IPBuilding-Gateway/blob/main/ipbuilding_gateway/DOCS.md)
+for `devices.json`, options, and field-bus networking.
 
-Vanuit een HA automation of service call:
-*(Command interface via WebSocket `command` berichten — automations/scenes spreken direct via de coordinator.)*
+### 2. Companion integration (HACS, recommended)
 
-## Ontwikkeling
+Make sure the [prerequisites](#prerequisites) are met before installing.
 
-Bestanden in `custom_components/ipbuilding_gateway_ha/`:
-- `coordinator.py` — WebSocket-client + state management
-- `light.py` — relay/dimmer light entities
-- `switch.py` — switch entities
-- `button.py` — button/event entities
-- `sensor.py` — power sensor entities
-- `config_flow.py` — gebruiker invoer + validatie
-- `manifest.json` — HA integratie manifest
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ipbuilding-gateway-ha&category=integration)
+
+1. Add this repository as a **Custom repository** in HACS
+   (`https://github.com/markminnoye/ipbuilding-gateway-ha`).
+2. Search for **IPBuilding Gateway HA** in HACS.
+3. Install the integration and **restart Home Assistant**.
+
+### Manual installation
+
+1. Copy the `custom_components/ipbuilding_gateway_ha` directory from this
+   repository into your Home Assistant `config/custom_components` folder.
+
+   Final path: `config/custom_components/ipbuilding_gateway_ha`
+
+2. Restart Home Assistant.
+
+## Configuration
+
+The integration is configured entirely through the Home Assistant UI — no YAML
+is required for setup.
+
+### Discovered (recommended)
+
+1. Start the **IPBuilding Gateway** add-on (or standalone gateway).
+2. Go to **Settings → Devices & Services → Discovered**.
+3. Select **IPBuilding Gateway HA** and confirm.
+
+On HA OS the add-on registers via **Supervisor discovery**. On a standalone
+gateway the companion listens for **mDNS** (`_ipbgw._tcp.local.`). When both
+apply, duplicate entries are suppressed automatically.
+
+### Manual fallback
+
+Use **Settings → Devices & Services → Add integration → IPBuilding Gateway HA**
+when discovery is blocked (VLAN without mDNS reflector, remote host, etc.):
+
+- **Host** — IP address or hostname of the gateway
+- **Port** — API port (default **8080**)
+
+The config flow validates `GET /api/v1/status` before saving. Only one config
+entry per gateway instance is allowed.
 
 ## Dashboard
 
-Voor de Tier-1 hub-entities (`sensor.ipbuilding_gateway_gateway_status` +
-`button.ipbuilding_gateway_run_discovery_sweep`) is een apart Lovelace-fragment
-beschikbaar — inclusief Issues-card, button-card snippet en troubleshooting:
+A ready-to-paste Lovelace snippet for gateway status and the discovery-sweep
+button is in
+[`custom_components/ipbuilding_gateway_ha/dashboard.md`](custom_components/ipbuilding_gateway_ha/dashboard.md)
+(includes optional HACS **button-card** notes).
 
-- [custom_components/ipbuilding_gateway_ha/dashboard.md](custom_components/ipbuilding_gateway_ha/dashboard.md)
+## Actions
 
-## Vereisten
+The integration does not register custom services for device control. Use
+standard Home Assistant services on the created entities:
 
-- Home Assistant >= 2023.8 (voor EventEntity)
-- `aiohttp` Python package
-- Gateway moet WebSocket `/ws` en REST `/api/v1/devices` exposed hebben (poort 8080)
-- Voor dashboard-card `button-card` is de HACS Frontend custom card vereist (overige cards zijn core Lovelace)
+- `light.turn_on` / `light.turn_off` — relays and dimmers (dimmers use `DIM`
+  on the field bus)
+- `switch.turn_on` / `switch.turn_off` — switch-class channels
+- `button.press` — gateway discovery sweep (hub device)
+
+Physical IP1100PoE buttons fire an event (not `button.press`):
+
+```yaml
+trigger:
+  - platform: event
+    event_type: ipbuilding_gateway_ha.button_pressed
+    event_data:
+      hardware_id: "2DE341851900001F"
+```
+
+Build scenes and automations in Home Assistant — the gateway does not store
+IPBox-style moods or button→relay mappings.
+
+## Inactive channels
+
+Channels marked `active: false` in the gateway `devices.json` appear as
+**disabled, hidden** entities. Enable them under
+**Settings → Devices & Services → Entities** when wiring is complete.
+
+## Security notes
+
+- The gateway API has **no authentication** — anyone on the LAN who can reach
+  port 8080 can control the field bus. **Do not expose the gateway outside your
+  LAN.**
+- Traffic is **unencrypted HTTP/WebSocket**. Use only on a trusted network
+  segment (e.g. your IPBuilding VLAN).
+- Replacing the IPBox hub on UDP/1001 requires correct L2/L3 placement; see
+  gateway docs before cutting over production wiring.
+
+## Removing the integration
+
+Go to **Settings → Devices & Services → IPBuilding Gateway HA**, select your
+entry, and click **Delete**. This removes Home Assistant entities and the
+config entry only — the gateway add-on and `devices.json` are unchanged.
+
+## Migrating from HA-IPBuilding (IPBox REST)
+
+The legacy [**HA-IPBuilding**](https://github.com/markminnoye/HA-IPBuilding)
+integration talks to the IPBox REST API on port **30200**. This companion uses
+the open gateway on **8080** instead. See the
+[gateway architecture / migration notes](https://github.com/markminnoye/IPBuilding-Gateway/blob/main/ARCHITECTURE.md)
+for a cutover path (import devices → run gateway → install companion → move
+automations to HA → retire IPBox on the field bus).
+
+## Issues and feature requests
+
+Use the [issue tracker](https://github.com/markminnoye/ipbuilding-gateway-ha/issues).
+When reporting a bug, include:
+
+- Home Assistant version
+- Integration version (**Settings → Devices & Services → IPBuilding Gateway HA**)
+- Gateway add-on / standalone version (`GET /api/v1/status` → `version`)
+- Relevant logs (**Settings → System → Logs**, filter `ipbuilding_gateway_ha`)
+
+## License
+
+This project is licensed under the terms of the [LICENSE](LICENSE) file.
