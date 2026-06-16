@@ -71,7 +71,8 @@ class IPBuildingEventButton(EventEntity):
             if action != "press":
                 return
             event_data = {"hardware_id": self._hardware_id, "action": action}
-            self.async_trigger_event("press", event_data)
+            self._trigger_event("press", event_data)
+            self.async_write_ha_state()
             self.hass.bus.async_fire(
                 f"{DOMAIN}.button_pressed",
                 event_data,
