@@ -1,4 +1,4 @@
-# Home Assistant integration for IPBuilding Gateway
+# Home Assistant Compannion App for IPBuilding Gateway
 
 [![Version](https://img.shields.io/github/v/release/markminnoye/ipbuilding-gateway-ha)](https://github.com/markminnoye/ipbuilding-gateway-ha/releases/latest)
 [![License](https://img.shields.io/github/license/markminnoye/ipbuilding-gateway-ha)](LICENSE)
