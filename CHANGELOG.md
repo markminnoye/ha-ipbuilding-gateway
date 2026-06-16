@@ -10,6 +10,11 @@ zodat add-on + companion als één versienummer te volgen zijn.
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-06-16
+
+### Changed
+- **Apparaatnaam voor de drie field modules toont nu `Relay module`, `Dimmer module`, `Input module`** in plaats van `Relay` / `Dimmer` / `Input`. De suffix maakt expliciet dat de kaart in de onboarding "Naam geven en toewijzen" de fysieke module voorstelt, niet één van de kanalen. De kanaal-apparaten in "Apparaat-info" houden hun korte rol-label (`Relay` / `Dimmer` / `Input`) zodat het overzicht bij 16+ kanalen compact blijft. De SKU-titel (`IP0200PoE` / `IP0300PoE` / `IP1100PoE`) verandert niet.
+
 ## [0.3.6] - 2026-06-16
 
 ### Fixed

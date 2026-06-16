@@ -29,7 +29,19 @@ from .const import (
 # Auto-discovery and legacy devices.json use the hardware SKU as ``name``.
 _HARDWARE_MODELS = frozenset({"IP0200PoE", "IP0300PoE", "IP1100PoE"})
 
+# Long form: the Tier-2 module device name in the onboarding screen,
+# where the suffix makes it explicit that the card represents the
+# physical module (not one of its channels).
 _MODULE_TYPE_LABELS: dict[str, str] = {
+    DEVICE_TYPE_RELAY: "Relay module",
+    DEVICE_TYPE_DIMMER: "Dimmer module",
+    DEVICE_TYPE_INPUT: "Input module",
+}
+
+# Short form: shown as ``model`` on each Tier-3 channel device in
+# "Apparaat-info". Compact to keep the per-channel panel readable when
+# the install has 16+ channels.
+_MODULE_TYPE_LABELS_SHORT: dict[str, str] = {
     DEVICE_TYPE_RELAY: "Relay",
     DEVICE_TYPE_DIMMER: "Dimmer",
     DEVICE_TYPE_INPUT: "Input",
@@ -61,10 +73,27 @@ _SEMANTIC_ICONS: dict[str, str] = {
 
 
 def module_type_label(module_type: str | None) -> str:
-    """Return a human-friendly module role label (Relay / Dimmer / Input)."""
+    """Return the long module role label (Relay module / Dimmer module / Input module).
+
+    Used as the Tier-2 module device name. Falls back to a generic
+    ``IPBuilding module`` for unknown types and to the raw ``module_type``
+    string when the type is not one of the three known field modules.
+    """
     if not module_type:
         return "IPBuilding module"
     return _MODULE_TYPE_LABELS.get(module_type, module_type)
+
+
+def module_type_label_short(module_type: str | None) -> str:
+    """Return the short module role label (Relay / Dimmer / Input).
+
+    Used as the ``model`` of each Tier-3 channel device in Apparaat-info.
+    Falls back to ``module_type_label`` when the type is unknown so the
+    operator still sees a meaningful string.
+    """
+    if not module_type:
+        return "IPBuilding module"
+    return _MODULE_TYPE_LABELS_SHORT.get(module_type, module_type_label(module_type))
 
 
 def module_device_model(module: dict[str, Any]) -> str:
@@ -192,7 +221,7 @@ def build_channel_device_info(
         "identifiers": {(DOMAIN, device["id"])},
         "name": device.get("name", device["id"]),
         "manufacturer": "IPBuilding",
-        "model": module_type_label(role),
+        "model": module_type_label_short(role),
     }
     if room := device.get("room"):
         info["suggested_area"] = room

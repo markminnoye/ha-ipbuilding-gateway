@@ -49,7 +49,7 @@ def test_module_device_name_ip_placeholder_falls_back_to_role():
         "type": "input",
         "model": "IP1100PoE",
     }
-    assert entity_mod.module_device_name(module) == "Input"
+    assert entity_mod.module_device_name(module) == "Input module"
 
 
 def test_module_device_name_sku_default_falls_back_to_role():
@@ -60,7 +60,18 @@ def test_module_device_name_sku_default_falls_back_to_role():
         "type": "relay",
         "model": "IP0200PoE",
     }
-    assert entity_mod.module_device_name(module) == "Relay"
+    assert entity_mod.module_device_name(module) == "Relay module"
+
+
+def test_module_device_name_dimmer_uses_long_label():
+    """Dimmer modules also resolve to the long 'Dimmer module' label."""
+    module = {
+        "name": "IP0300PoE",
+        "ip": "10.10.1.40",
+        "type": "dimmer",
+        "model": "IP0300PoE",
+    }
+    assert entity_mod.module_device_name(module) == "Dimmer module"
 
 
 def test_module_device_name_operator_name_is_preserved():
@@ -104,7 +115,35 @@ def test_build_module_hub_device_info_uses_sku_model():
         }
     )
     assert info["model"] == "IP1100PoE"
-    assert info["name"] == "Input"
+    assert info["name"] == "Input module"
+
+
+def test_build_channel_device_info_uses_short_role_model():
+    """Channel device_info uses the short role label ('Relay', not 'Relay module').
+
+    The long form is reserved for the Tier-2 module card name in the
+    onboarding screen. The per-channel 'Apparaat-info' panel stays
+    compact because the install carries 16+ channels.
+    """
+    module = {
+        "id": "00:24:77:52:ac:be",
+        "ip": "10.10.1.30",
+        "type": "relay",
+        "model": "IP0200PoE",
+        "mac": "00:24:77:52:ac:be",
+    }
+    info = entity_mod.build_channel_device_info(
+        {
+            "id": "10.10.1.30:relay:0",
+            "name": "Keuken LED",
+            "device_type": "relay",
+            "room": "Keuken",
+        },
+        module,
+    )
+    assert info["model"] == "Relay"
+    assert info["name"] == "Keuken LED"
+    assert info["suggested_area"] == "Keuken"
 
 
 def test_apply_active_registry_defaults_marks_inactive_entity():
