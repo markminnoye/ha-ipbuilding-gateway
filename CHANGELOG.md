@@ -10,6 +10,11 @@ zodat add-on + companion als één versienummer te volgen zijn.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-06-16
+
+### Fixed
+- **IP1100PoE-knoppen verschijnen nu als uitgeschakeld** in plaats van niet beschikbaar. Nieuwe knoppen uit de gateway-snapshot worden standaard verborgen en uitgeschakeld geregistreerd; je schakelt ze zelf in onder Instellingen → Apparaten & entiteiten.
+
 ## [0.3.5] - 2026-06-16
 
 ### Notes

@@ -28,6 +28,7 @@ from .const import (
     RECONNECT_JITTER,
     RECONNECT_MAX_DELAY,
 )
+from .entity import registry_unique_ids_for_device
 
 log = logging.getLogger(__name__)
 
@@ -579,17 +580,19 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         from homeassistant.helpers import entity_registry as er
 
         registry = er.async_get(self.hass)
+        remove_uids = {device_id, f"{device_id}_power", f"event_{device_id}"}
         for reg_entry in list(registry.entities.values()):
-            if reg_entry.unique_id == device_id or reg_entry.unique_id == f"{device_id}_power":
+            if reg_entry.unique_id in remove_uids:
                 registry.async_remove(reg_entry.entity_id)
 
     def _reconcile_active(self, devices: list[dict]) -> None:
         """Sync entity-registry disabled/hidden flags with ``active`` flags.
 
         For every device passed in, the matching registry entries (the bare
-        device id used by light/switch and the ``<id>_power`` id used by the
-        power sensor) are disabled+hidden when ``active`` is false, and the
-        integration-applied disable/hide is cleared again when it is true.
+        device id used by light/switch, the ``<id>_power`` id used by the
+        power sensor, and ``event_<id>`` for IP1100PoE buttons) are
+        disabled+hidden when ``active`` is false, and the integration-applied
+        disable/hide is cleared again when it is true.
 
         A single pass over the registry keeps this O(registry size) instead of
         O(devices × registry size).
@@ -602,8 +605,8 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not dev_id:
                 continue
             active = bool(dev.get("active", True))
-            active_by_uid[dev_id] = active
-            active_by_uid[f"{dev_id}_power"] = active
+            for uid in registry_unique_ids_for_device(dev):
+                active_by_uid[uid] = active
 
         if not active_by_uid:
             return

@@ -1,9 +1,10 @@
 """Shared helpers for ipbuilding_gateway_ha entities.
 
-Mirrors the HA-IPBuilding button pattern: channels with ``active: false`` in
-``devices.json`` are registered in Home Assistant as **disabled and hidden by
-default**, so the operator sees them in Instellingen → Apparaten & entiteiten
-without them appearing on dashboards or in automations until enabled.
+Mirrors the HA-IPBuilding button pattern: channels (and IP1100PoE buttons)
+with ``active: false`` in the gateway snapshot are registered in Home
+Assistant as **disabled and hidden by default**, so the operator sees them
+in Instellingen → Apparaten & entiteiten without them appearing on dashboards
+or in automations until enabled.
 """
 
 from __future__ import annotations
@@ -119,6 +120,22 @@ def entity_icon(device: dict[str, Any]) -> str:
     if semantic == SEMANTIC_TYPE_LIGHT and device_type == DEVICE_TYPE_DIMMER:
         return "mdi:brightness-6"
     return _SEMANTIC_ICONS.get(semantic, "mdi:help-circle")
+
+
+def registry_unique_ids_for_device(device: dict[str, Any]) -> list[str]:
+    """Return entity-registry ``unique_id`` values for a gateway device dict.
+
+    Relay/dimmer channels use the bare device id (and ``<id>_power`` for the
+    watt sensor). IP1100PoE buttons use ``event_<hardware_id>`` on the
+    ``event`` platform.
+    """
+    dev_id = device.get("id")
+    if not dev_id:
+        return []
+    unique_ids = [dev_id, f"{dev_id}_power"]
+    if device.get("device_type") == DEVICE_TYPE_INPUT:
+        unique_ids.append(f"event_{dev_id}")
+    return unique_ids
 
 
 def apply_active_registry_defaults(entity: Any, device: dict[str, Any]) -> None:

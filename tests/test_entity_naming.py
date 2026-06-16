@@ -105,3 +105,43 @@ def test_build_module_hub_device_info_uses_sku_model():
     )
     assert info["model"] == "IP1100PoE"
     assert info["name"] == "Input"
+
+
+def test_apply_active_registry_defaults_marks_inactive_entity():
+    class _Entity:
+        pass
+
+    entity = _Entity()
+    entity_mod.apply_active_registry_defaults(
+        entity, {"id": "10.10.1.30:relay:0", "active": False}
+    )
+    assert entity._attr_entity_registry_enabled_default is False
+    assert entity._attr_entity_registry_visible_default is False
+
+
+def test_apply_active_registry_defaults_leaves_active_entity():
+    class _Entity:
+        pass
+
+    entity = _Entity()
+    entity_mod.apply_active_registry_defaults(
+        entity, {"id": "10.10.1.30:relay:0", "active": True}
+    )
+    assert not hasattr(entity, "_attr_entity_registry_enabled_default")
+
+
+def test_registry_unique_ids_for_input_button():
+    device = {"id": "2f8185190000df", "device_type": "input"}
+    assert entity_mod.registry_unique_ids_for_device(device) == [
+        "2f8185190000df",
+        "2f8185190000df_power",
+        "event_2f8185190000df",
+    ]
+
+
+def test_registry_unique_ids_for_relay_channel():
+    device = {"id": "10.10.1.30:relay:0", "device_type": "relay"}
+    assert entity_mod.registry_unique_ids_for_device(device) == [
+        "10.10.1.30:relay:0",
+        "10.10.1.30:relay:0_power",
+    ]

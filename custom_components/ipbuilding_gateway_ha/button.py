@@ -19,7 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
-from .entity import build_channel_device_info
+from .entity import apply_active_registry_defaults, build_channel_device_info
 from .hub import gateway_device_info
 
 log = logging.getLogger(__name__)
@@ -40,15 +40,17 @@ class IPBuildingEventButton(EventEntity):
 
     def __init__(
         self,
-        hardware_id: str,
-        name: str | None,
+        device: dict[str, Any],
         coordinator: IPBuildingCoordinator,
-        device_info: dict[str, Any],
     ) -> None:
+        hardware_id = device["id"]
+        name = device.get("name")
+        self._device = device
         self._hardware_id = hardware_id
         self._coordinator = coordinator
         self._attr_unique_id = f"event_{hardware_id}"
-        self._attr_device_info = device_info
+        module = coordinator.module_for_channel(device)
+        self._attr_device_info = build_channel_device_info(device, module)
         self.entity_description = EventEntityDescription(
             key=hardware_id,
             name=name or f"Button {hardware_id}",
@@ -57,6 +59,7 @@ class IPBuildingEventButton(EventEntity):
             translation_placeholders={"hardware_id": hardware_id},
         )
         self._on_button_event: Callable[[dict], None] | None = None
+        apply_active_registry_defaults(self, device)
 
     async def async_added_to_hass(self) -> None:
         """Register to receive button events from the coordinator."""
@@ -129,10 +132,7 @@ async def async_setup_entry(
             hardware_id = device.get("id")
             if not hardware_id:
                 continue
-            name = device.get("name")
-            module = coordinator.module_for_channel(device)
-            device_info = build_channel_device_info(device, module)
-            button = IPBuildingEventButton(hardware_id, name, coordinator, device_info)
+            button = IPBuildingEventButton(device, coordinator)
             if button._attr_unique_id in seen_unique_ids:
                 continue
             seen_unique_ids.add(button._attr_unique_id)
