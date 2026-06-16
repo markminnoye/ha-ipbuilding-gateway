@@ -10,6 +10,11 @@ zodat add-on + companion als één versienummer te volgen zijn.
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-06-16
+
+### Notes
+- **Lockstep bump** met de add-on. Geen code-wijzigingen in de companion. Vereist add-on **v0.3.5** voor automatische Supervisor-updates.
+
 ## [0.3.3] - 2026-06-16
 
 ### Fixed
