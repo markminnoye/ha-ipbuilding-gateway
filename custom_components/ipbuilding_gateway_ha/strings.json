@@ -37,6 +37,11 @@
       }
     }
   },
+  "device_automation": {
+    "trigger_type": {
+      "pressed": "Button pressed"
+    }
+  },
   "entity": {
     "sensor": {
       "gateway_status": {

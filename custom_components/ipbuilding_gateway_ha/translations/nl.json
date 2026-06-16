@@ -37,6 +37,11 @@
       }
     }
   },
+  "device_automation": {
+    "trigger_type": {
+      "pressed": "Knop ingedrukt"
+    }
+  },
   "entity": {
     "sensor": {
       "gateway_status": {
