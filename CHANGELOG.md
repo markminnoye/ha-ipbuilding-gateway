@@ -10,6 +10,19 @@ zodat add-on + companion als één versienummer te volgen zijn.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-06-16
+
+### Fixed
+- **Button entities failed to load** with `UnboundLocalError: cannot access local variable 'callback'`: the WS listener inside `async_added_to_hass` was named `callback`, which shadowed the imported `@callback` decorator from Home Assistant.
+- **Duplicate unique ID errors** for lights, sensors and buttons on startup: the debounced diff triggered by the first WebSocket `snapshot` treated every channel as new because `_known_devices` was still empty after the initial REST/platform setup. The coordinator now seeds known devices once all platforms have finished loading.
+
+### Changed
+- **Module names are now consistent across all three field modules.** A new `module_device_model` helper returns the canonical hardware SKU (`IP0200PoE`, `IP0300PoE`, `IP1100PoE`) as the `model` field even when the gateway snapshot lacks a factory product label. The Tier-2 module registration and `build_module_hub_device_info` both use it, so onboarding's "Apparaat-info" always shows the SKU as title.
+- `module_device_name` now treats the module's IP address and the bare hardware SKU as auto-discovery placeholders. Operators who set a real name in `devices.json` (e.g. `Kelder relais`) are unaffected; auto-discovery and pre-provisioned installs (e.g. legacy `name: "10.10.1.50"`) now show the role label (`Relay` / `Dimmer` / `Input`) instead of an IP.
+
+### Notes
+- Vereist add-on **v0.3.3** voor de SKU-backfill; oudere add-ons blijven werken dankzij de defensive fallback in de companion, maar krijgen geen automatische `devices.json`-correctie.
+
 ## [0.3.1] — 2026-06-16
 
 ### Changed

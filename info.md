@@ -21,11 +21,15 @@ De gateway praat rechtstreeks via **UDP/1001** met IPBuilding-modules (IP0200PoE
 
 ## Installatie (HACS)
 
-1. Voeg deze repo toe in HACS als **Custom Repository**:
-   - URL: `https://github.com/markminnoye/ipbuilding-gateway-ha`
-   - Type: **Integration**
-2. Installeer **IPBuilding Gateway HA**
-3. Herstart Home Assistant
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ipbuilding-gateway-ha&category=integration)
+
+Custom repository (niet in de standaard HACS-winkel). De link hierboven voegt
+`markminnoye/ipbuilding-gateway-ha` toe; daarna **IPBuilding Gateway HA**
+downloaden en Home Assistant herstarten.
+
+Handmatig als de link faalt: **HACS → Integraties → ⋮ → Aangepaste
+repositories** → `https://github.com/markminnoye/ipbuilding-gateway-ha`
+(type **Integratie**).
 4. De integratie verschijnt nu vanzelf onder **Instellingen → Apparaten & Diensten → Ontdekt** zodra de gateway (add-on of standalone) draait. Klik **Toevoegen** om te koppelen.
    - Bij actieve add-on: Supervisor stuurt het discovery signaal — geen multicast nodig.
    - Bij standalone gateway: mDNS broadcast; werkt alleen op een plat LAN met host networking.

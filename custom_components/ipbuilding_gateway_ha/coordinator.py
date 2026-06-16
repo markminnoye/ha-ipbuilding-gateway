@@ -702,3 +702,27 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def all_device_ids(self) -> list[str]:
         """Return all known entity IDs."""
         return list(self._data.keys()) if isinstance(self._data, dict) else []
+
+    def devices_snapshot(self) -> list[dict[str, Any]]:
+        """Return the current device list from WS cache or REST fallback."""
+        if isinstance(self._data, dict) and self._data:
+            return list(self._data.values())
+        raw = self.data
+        if isinstance(raw, dict):
+            return list(raw.values())
+        if isinstance(raw, list):
+            return raw
+        return []
+
+    def seed_known_devices(self, devices: list[dict[str, Any]] | None = None) -> None:
+        """Mark devices as known so the first WS snapshot diff does not re-add them.
+
+        Call once after all platforms finish their initial ``async_setup_entry``
+        pass. Without this, the debounced diff triggered by the first WebSocket
+        ``snapshot`` treats every channel as a brand-new addition and HA logs
+        "does not generate unique IDs" for each entity.
+        """
+        snapshot = devices if devices is not None else self.devices_snapshot()
+        self._known_devices = {
+            (d["id"], bool(d.get("active", True))) for d in snapshot if d.get("id")
+        }

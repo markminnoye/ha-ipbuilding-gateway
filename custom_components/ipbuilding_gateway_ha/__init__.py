@@ -17,7 +17,7 @@ from homeassistant.helpers import (
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
-from .entity import module_device_name
+from .entity import module_device_model, module_device_name
 from .hub import gateway_device_info
 
 log = logging.getLogger(__name__)
@@ -39,6 +39,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry,
         ["light", "switch", "button", "sensor"],
     )
+    # The first WS snapshot schedules a debounced diff before platforms exist.
+    # Seed known devices now so that diff pass does not recreate every entity.
+    coordinator.seed_known_devices()
     # Now that channel entities have been registered, link them to the
     # matching HA area by name when the gateway provided a ``room`` for
     # the channel. Devices without a match still carry ``suggested_area``
@@ -79,7 +82,7 @@ def _register_hub_devices(
             "identifiers": {(DOMAIN, mac)},
             "name": module_device_name(module),
             "manufacturer": "IPBuilding",
-            "model": module.get("model") or module.get("type"),
+            "model": module_device_model(module) or module.get("type"),
             "via_device": (DOMAIN, entry.entry_id),
         }
         firmware = module.get("firmware")

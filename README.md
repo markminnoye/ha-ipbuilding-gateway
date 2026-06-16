@@ -68,12 +68,22 @@ for `devices.json`, options, and field-bus networking.
 
 Make sure the [prerequisites](#prerequisites) are met before installing.
 
+This integration is a **HACS custom repository** (not in the default store). Use
+the link below to add it in HACS, then download **IPBuilding Gateway HA** and
+restart Home Assistant.
+
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ipbuilding-gateway-ha&category=integration)
 
-1. Add this repository as a **Custom repository** in HACS
-   (`https://github.com/markminnoye/ipbuilding-gateway-ha`).
-2. Search for **IPBuilding Gateway HA** in HACS.
-3. Install the integration and **restart Home Assistant**.
+Direct link (same target):
+
+```text
+https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ipbuilding-gateway-ha&category=integration
+```
+
+If HACS shows *Repository … not found* or a broken confirmation dialog, add the
+repo manually: **HACS → Integrations → ⋮ → Custom repositories** →
+`https://github.com/markminnoye/ipbuilding-gateway-ha` (type **Integration**),
+then search and download **IPBuilding Gateway HA**.
 
 ### Manual installation
 

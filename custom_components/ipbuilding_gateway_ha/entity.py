@@ -8,6 +8,8 @@ without them appearing on dashboards or in automations until enabled.
 
 from __future__ import annotations
 
+import re
+
 from typing import Any
 
 from .const import (
@@ -32,6 +34,18 @@ _MODULE_TYPE_LABELS: dict[str, str] = {
     DEVICE_TYPE_INPUT: "Input",
 }
 
+# Type → canonical hardware SKU. Mirrors
+# ``gateway.discovery._TYPE_TO_MODEL`` so the companion falls back to a
+# stable "Apparaat-info" title even when the gateway snapshot is missing
+# the factory product label (e.g. older add-on, ARP-only discovery).
+_TYPE_TO_MODEL: dict[str, str] = {
+    DEVICE_TYPE_RELAY: "IP0200PoE",
+    DEVICE_TYPE_DIMMER: "IP0300PoE",
+    DEVICE_TYPE_INPUT: "IP1100PoE",
+}
+
+_IPV4_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+
 # Mapping from channel ``semantic_type`` to a Material Design Icon. The
 # dimmer-on-light special case is handled in :func:`entity_icon` because
 # it depends on the parent module's ``device_type`` as well.
@@ -52,15 +66,43 @@ def module_type_label(module_type: str | None) -> str:
     return _MODULE_TYPE_LABELS.get(module_type, module_type)
 
 
+def module_device_model(module: dict[str, Any]) -> str:
+    """Return the hardware SKU to display as the module's ``model``.
+
+    Prefers the gateway-provided ``model`` (factory product label, may be
+    ``IP200PoE`` for legacy installs). Falls back to the canonical SKU for
+    the type so onboarding keeps a stable title even when the gateway
+    snapshot is incomplete.
+    """
+    model = module.get("model")
+    if model:
+        return model
+    return _TYPE_TO_MODEL.get(module.get("type", ""), "")
+
+
+def _is_placeholder_name(name: str | None, module: dict[str, Any]) -> bool:
+    """Return True when ``name`` is an auto-discovery placeholder, not an operator choice."""
+    if not name:
+        return True
+    if name in _HARDWARE_MODELS:
+        return True
+    if name == module.get("ip"):
+        return True
+    return bool(_IPV4_RE.match(name))
+
+
 def module_device_name(module: dict[str, Any]) -> str:
     """Pick the HA device name for a field module.
 
     Uses the operator-configured ``name`` when it is not the auto-discovery
     hardware default; otherwise falls back to the module role (relay/dimmer/input).
+    Auto-discovery placeholders — the module's IP and the bare hardware SKU —
+    are treated as defaults so an IP-based name (e.g. ``10.10.1.50``) does
+    not leak into the onboarding "Apparaatnaam" field.
     """
     name = module.get("name")
     model = module.get("model")
-    if name and name != model and name not in _HARDWARE_MODELS:
+    if name and name != model and not _is_placeholder_name(name, module):
         return name
     return module_type_label(module.get("type"))
 
@@ -103,7 +145,7 @@ def build_module_hub_device_info(module: dict[str, Any]) -> dict[str, Any]:
         "identifiers": {(DOMAIN, module["id"])},  # MAC
         "name": module_device_name(module),
         "manufacturer": "IPBuilding",
-        "model": module.get("model") or module.get("type"),
+        "model": module_device_model(module) or module.get("type"),
     }
     firmware = module.get("firmware")
     if firmware:

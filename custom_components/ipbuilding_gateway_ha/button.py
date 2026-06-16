@@ -63,7 +63,7 @@ class IPBuildingEventButton(EventEntity):
         listener_key = f"button:{self._hardware_id}"
 
         @callback
-        def callback(data: dict) -> None:
+        def _handle_button_event(data: dict) -> None:
             action = data.get("action", "press")
             if action != "press":
                 return
@@ -74,8 +74,8 @@ class IPBuildingEventButton(EventEntity):
                 event_data,
             )
 
-        self._on_button_event = callback
-        self._coordinator.register_entity(listener_key, callback)
+        self._on_button_event = _handle_button_event
+        self._coordinator.register_entity(listener_key, _handle_button_event)
 
     async def async_will_remove_from_hass(self) -> None:
         """Unregister the button event listener."""
