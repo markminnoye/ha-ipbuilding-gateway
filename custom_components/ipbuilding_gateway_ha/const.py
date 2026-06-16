@@ -21,6 +21,7 @@ SEMANTIC_TYPE_FAN = "fan"
 SEMANTIC_TYPE_PLUG = "plug"
 SEMANTIC_TYPE_COVER = "cover"
 SEMANTIC_TYPE_SENSOR = "sensor"
+SEMANTIC_TYPE_BUTTON = "button"
 
 # WS reconnect delays (seconds)
 RECONNECT_BASE_DELAY = 1.0

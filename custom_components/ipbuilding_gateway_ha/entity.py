@@ -15,6 +15,7 @@ from .const import (
     DEVICE_TYPE_INPUT,
     DEVICE_TYPE_RELAY,
     DOMAIN,
+    SEMANTIC_TYPE_BUTTON,
     SEMANTIC_TYPE_COVER,
     SEMANTIC_TYPE_FAN,
     SEMANTIC_TYPE_LIGHT,
@@ -40,6 +41,7 @@ _SEMANTIC_ICONS: dict[str, str] = {
     SEMANTIC_TYPE_PLUG: "mdi:power-plug",
     SEMANTIC_TYPE_SWITCH: "mdi:toggle-switch-variant",
     SEMANTIC_TYPE_COVER: "mdi:blinds-horizontal",
+    SEMANTIC_TYPE_BUTTON: "mdi:gesture-tap-button",
 }
 
 

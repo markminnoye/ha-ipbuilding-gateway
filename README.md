@@ -127,14 +127,30 @@ standard Home Assistant services on the created entities:
 - `switch.turn_on` / `switch.turn_off` — switch-class channels
 - `button.press` — gateway discovery sweep (hub device)
 
-Physical IP1100PoE buttons fire an event (not `button.press`):
+Physical IP1100PoE buttons are exposed as `event.<naam>` entities under the
+IP1100PoE device. Use a **state trigger** on the entity (preferred — shows up
+in the UI trace):
+
+```yaml
+triggers:
+  - trigger: state
+    entity_id: event.badkamer_knop
+    to: "press"
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.badkamer
+```
+
+For backward compatibility, the integration also fires the bus event
+`ipbuilding_gateway_ha.button_pressed` with `{"hardware_id": "...", "action": "press"}`:
 
 ```yaml
 trigger:
   - platform: event
     event_type: ipbuilding_gateway_ha.button_pressed
     event_data:
-      hardware_id: "2DE341851900001F"
+      hardware_id: "2f8185190000df"
 ```
 
 Build scenes and automations in Home Assistant — the gateway does not store

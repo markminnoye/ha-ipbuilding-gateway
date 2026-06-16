@@ -36,6 +36,7 @@ class IPBuildingEventButton(EventEntity):
 
     _attr_has_entity_name = True
     _attr_event_types = _BUTTON_EVENT_TYPES
+    _attr_icon = "mdi:gesture-tap-button"
 
     def __init__(
         self,
@@ -49,6 +50,7 @@ class IPBuildingEventButton(EventEntity):
         self._attr_unique_id = f"event_{hardware_id}"
         self._attr_device_info = device_info
         self.entity_description = EventEntityDescription(
+            key=hardware_id,
             name=name or f"Button {hardware_id}",
             event_types=_BUTTON_EVENT_TYPES,
             translation_key="button",
