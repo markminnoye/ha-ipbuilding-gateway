@@ -25,6 +25,9 @@ anders meldt.
 
 ## [Unreleased]
 
+### Removed
+- **Debug switch om gateway veld-bus polling te togglen.** De `Fieldbus polling (debug)` entity en de bijbehorende `coordinator.async_set_fieldbus_polling` / `fieldbus_polling_enabled` helpers zijn verwijderd. De gateway-side `POST /api/v1/debug/fieldbus-polling` endpoint is eveneens verwijderd (zie [`IPBuilding-Gateway` v0.4.3](../../IPBuilding-Gateway/blob/main/ipbuilding_gateway/CHANGELOG.md)).
+
 ## [0.4.2] - 2026-06-18
 
 ### Added
