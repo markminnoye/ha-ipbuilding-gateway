@@ -1,4 +1,4 @@
-"""Button entity platform for IPBuilding Open.
+"""Event entity platform for IPBuilding physical buttons.
 
 Exposes physical buttons on IP1100PoE modules as HA EventEntity
 instances. Each press/long_press/release from the gateway is routed to
@@ -6,6 +6,12 @@ the matching ``event_type`` on the entity and to a typed bus event
 (``ipbuilding_gateway_ha.button_pressed`` / ``button_long_pressed`` /
 ``button_released``) so automations and blueprints can react to
 multi-stage button interactions.
+
+The companion's ``button.py`` (separate file, registered as the
+``button`` platform) hosts the ``IPBuildingDiscoverButton`` for the
+"Run discovery sweep" action. Splitting the two ensures HA Core
+derives ``event.<hardware_id>`` for the physical button entities
+instead of ``button.<slugified-name>``.
 """
 
 from __future__ import annotations
@@ -13,7 +19,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from homeassistant.components.button import ButtonEntity
 from homeassistant.components.event import (
     EventDeviceClass,
     EventEntity,
@@ -21,13 +26,11 @@ from homeassistant.components.event import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
 from .entity import apply_active_registry_defaults, build_channel_device_info
-from .hub import gateway_device_info
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +76,14 @@ class IPBuildingEventButton(EventEntity):
         self._hardware_id = hardware_id
         self._coordinator = coordinator
         self._attr_unique_id = f"event_{hardware_id}"
+        # HA Core's ``_async_derive_object_ids`` honours
+        # ``Entity.internal_integration_suggested_object_id`` literally
+        # and uses it as the object_id. We set it to the raw hardware id
+        # (e.g. ``"2f8185190000df"``) so the resulting entity_id is
+        # ``event.<hardware_id>`` - a stable 1-to-1 mapping with the
+        # ``getButtons`` HTTP response, with no slugify / no
+        # device-name contamination and no doubled room/name.
+        self.internal_integration_suggested_object_id = self._hardware_id
         module = coordinator.module_for_channel(device)
         self._attr_device_info = build_channel_device_info(device, module)
         self.entity_description = EventEntityDescription(
@@ -124,31 +135,12 @@ class IPBuildingEventButton(EventEntity):
             )
 
 
-class IPBuildingDiscoverButton(ButtonEntity):
-    """Trigger a forced discovery sweep on the gateway."""
-
-    _attr_has_entity_name = True
-    _attr_name = "Run discovery sweep"
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_translation_key = "discover_sweep"
-    _attr_icon = "mdi:radar"
-
-    def __init__(self, entry: ConfigEntry, coordinator: IPBuildingCoordinator) -> None:
-        self._coordinator = coordinator
-        self._attr_unique_id = f"{entry.entry_id}_discover"
-        self._attr_device_info = gateway_device_info(entry, coordinator)
-
-    async def async_press(self) -> None:
-        """Run POST /api/v1/discover on the gateway."""
-        await self._coordinator.async_trigger_discover()
-
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up button/event entities from a config entry.
+    """Set up event entities from a config entry.
 
     Creates an IPBuildingEventButton for each entry in devices.json that
     represents a physical button (type=input on IP1100PoE).
@@ -157,8 +149,6 @@ async def async_setup_entry(
     # ``devices_snapshot()`` is the canonical read API; it works on every
     # code path (REST fallback list, REST cached dict, WebSocket snapshot).
     devices = coordinator.devices_snapshot()
-
-    async_add_entities([IPBuildingDiscoverButton(entry, coordinator)])
 
     seen_unique_ids: set[str] = set()
 
@@ -176,9 +166,9 @@ async def async_setup_entry(
             seen_unique_ids.add(button._attr_unique_id)
             new_buttons.append(button)
         for button in new_buttons:
-            coordinator.track_platform_entity("button", button._hardware_id, button)
+            coordinator.track_platform_entity("event", button._hardware_id, button)
         if new_buttons:
             async_add_entities(new_buttons)
 
     _add(devices)
-    coordinator.register_platform("button", _add)
+    coordinator.register_platform("event", _add)

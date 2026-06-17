@@ -12,8 +12,11 @@ from __future__ import annotations
 
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
 from .hub import gateway_device_info
 
@@ -37,3 +40,13 @@ class IPBuildingDiscoverButton(ButtonEntity):
     async def async_press(self) -> None:
         """Run POST /api/v1/discover on the gateway."""
         await self._coordinator.async_trigger_discover()
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the discovery button for the gateway."""
+    coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([IPBuildingDiscoverButton(entry, coordinator)])
