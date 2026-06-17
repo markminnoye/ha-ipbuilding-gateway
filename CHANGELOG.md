@@ -25,6 +25,11 @@ anders meldt.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-17
+
+### Changed
+- **Vernieuwde iconenset voor de integratie.** Het icoon van de companion (HACS-categorie, Apparaten & diensten) en de merkiconen in `brand/` zijn vervangen door een nieuwe set. De weergave in Instellingen → Apparaten & diensten en de merk-icon-grid gebruiken voortaan het nieuwe ontwerp; gedrag van entiteiten verandert niet.
+
 ## [0.3.8] - 2026-06-16
 
 ### Fixed
