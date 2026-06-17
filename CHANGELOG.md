@@ -25,6 +25,11 @@ anders meldt.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-18
+
+### Fixed
+- **Manual config flow pre-fills the host with `127.0.0.1`** — the Supervisor add-on contract. Operators adding the integration by hand used to see an empty host field; the loopback hint now matches the HassIO discovery flow, so a fresh add-on install confirms out of the box. Standalone installs (Docker, Pi, remote) can still override the value.
+
 ## [0.4.0] - 2026-06-17
 
 ### Added

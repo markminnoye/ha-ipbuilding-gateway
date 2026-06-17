@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "IPBuilding Gateway",
-        "description": "Voer het IP-adres en de poort van de IPBuilding Gateway in.",
+        "description": "Voer het IP-adres en de poort van de IPBuilding Gateway in. De standaard host (127.0.0.1) klopt voor de Supervisor add-on; pas aan bij standalone Docker of een externe installatie.",
         "data": {
           "host": "Host",
           "port": "Poort"

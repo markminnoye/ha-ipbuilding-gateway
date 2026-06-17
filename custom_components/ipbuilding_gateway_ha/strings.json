@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "IPBuilding Gateway",
-        "description": "Enter the IP address and port of the IPBuilding Gateway.",
+        "description": "Enter the IP address and port of the IPBuilding Gateway. The default host (127.0.0.1) is correct for the Supervisor add-on; change it for standalone Docker or remote installs.",
         "data": {
           "host": "Host",
           "port": "Port"

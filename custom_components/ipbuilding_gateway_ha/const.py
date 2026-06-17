@@ -8,6 +8,15 @@ CONF_API_HOST = CONF_HOST
 CONF_API_PORT = CONF_PORT
 
 DEFAULT_API_PORT = 8080
+#: Default host for the manual config flow. ``127.0.0.1`` is the
+#: Supervisor add-on contract (the companion runs in HA Core, the
+#: gateway in the same host network namespace on port 8080). Operators
+#: running the gateway standalone (Docker / Pi / remote) override this
+#: in the form. HassIO and Zeroconf discovery flows still take
+#: precedence — they fill ``CONF_HOST`` automatically from the add-on's
+#: Supervisor token or the gateway's mDNS TXT record, so this default
+#: only matters for the manual fallback ``async_step_user``.
+DEFAULT_API_HOST = "127.0.0.1"
 
 # Entity device types
 DEVICE_TYPE_RELAY = "relay"
