@@ -37,7 +37,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.start()
     await hass.config_entries.async_forward_entry_setups(
         entry,
-        ["light", "switch", "button", "sensor"],
+        ["light", "switch", "event", "button", "sensor"],
     )
     # The first WS snapshot schedules a debounced diff before platforms exist.
     # Seed known devices now so that diff pass does not recreate every entity.
@@ -125,7 +125,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # ``async_forward_entry_unload``; use ``async_unload_platforms`` instead.
     return await hass.config_entries.async_unload_platforms(
         entry,
-        ("light", "switch", "button", "sensor"),
+        ("light", "switch", "event", "button", "sensor"),
     )
 
 
