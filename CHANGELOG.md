@@ -25,13 +25,26 @@ anders meldt.
 
 ## [Unreleased]
 
-### Fixed
-- **Onboarding wizard wordt nu daadwerkelijk gestart** na de eerste installatie. Eerdere implementie gebruikte `hass.config_entries.flow.async_init(DOMAIN, context={"source": "onboarding", ...})`, wat geen geldige HA `source` is — HA liet de flow nooit zien. De wizard draait nu als een OptionsFlow met een `hass.data`-flag die het menuspoor overslaat en meteen in `onboarding_intro` stapt. Handmatig herstarten kan nog steeds via **Instellingen → Apparaten & Diensten → IPBuilding Gateway HA → Configure → Run setup wizard again**.
+## [1.1.0] - 2026-06-19
 
 ### Added
-- **Onboarding wizard (Sprint 1):** na eerste installatie opent een setup-wizard (overslaan mogelijk) met veldbus discovery sweep (visuele voortgang + resultaat), ruimte→HA-area mapping, en herstart via integratie-opties.
-- **Button mapping wizard stap (Sprint 2):** leest `getButtons` van de inputmodule(s) en stelt per knop een doel-entity (light/switch) voor. Genereert per `func1`/`func2`/`release` een HA automation met native device-trigger, standaard uitgeschakeld. `allOn`/`allOff` worden als module-scope groep geëmiteerd. Numerieke `outType` waarden (0/1/160/255) uit de IPBox autonomy-formaat worden genormaliseerd.
-- IP1100PoE-knoppen zijn standaard **ingeschakeld** in de entity registry (gateway stuurt geen `active: false` meer); inactieve relay/dimmer-kanalen (`active: false` in `devices.json`) blijven disabled+hidden.
+- **Onboarding-wizard in de koppel-flow.** Na het toevoegen van de gateway loopt de wizard meteen — *ruimtes → areas* → *overzicht van nieuwe entiteiten* → *knoppen importeren* — vóór de integratie wordt aangemaakt. Dit vervangt het kale entiteiten-overzicht als eerste scherm.
+- **Ruimte → HA-area mapping.** Gateway-ruimtenamen worden als veldlabel getoond en gekoppeld aan Home Assistant areas; een gelijknamige bestaande area wordt voorgeselecteerd en ontbrekende areas worden aangemaakt. Geldt voor relais/dimmers én IP1100PoE-knoppen.
+- **Knop-automatiseringen worden daadwerkelijk aangemaakt** in `automations.yaml`: per geconfigureerde knopactie een HA device-trigger-automation met alias `"<knop> → <doel>"`, actie `on`/`off`/`toggle` conform de inputmodule, en een stabiel `ipb_map_*` id (idempotent — handgemaakte automatiseringen blijven behouden). De integratie roept automatisch `automation.reload` aan.
+- **Knop-doelen worden voorgevuld** in de "wizard opnieuw"-flow op basis van de bestaande mapping van de inputmodule.
+- IP1100PoE-knoppen zijn standaard **ingeschakeld** in de entity registry; inactieve relay/dimmer-kanalen (`active: false` in `devices.json`) blijven disabled+hidden.
+
+### Changed
+- De onboarding-wizard draait nu **in de config flow** i.p.v. een automatisch gestarte OptionsFlow. De OptionsFlow blijft beschikbaar voor *Configure → wizard opnieuw*.
+- **Discovery-scan verwijderd** uit de wizard. Een sweep draait alleen nog stil wanneer de gateway nog geen devices kent (verse installatie).
+- Knop-automatiseringen zijn nu **standaard ingeschakeld** en gebruiken het moderne `triggers`/`conditions`/`actions`-schema. `allOn`/`allOff` worden voorlopig overgeslagen in plaats van een ongeldige module-scope groep weg te schrijven.
+
+### Fixed
+- **Coordinator-crash bij elke refresh** en mislukte onboarding-discovery: de per-entity listener-dict botste met `DataUpdateCoordinator._listeners` (hernoemd naar `_entity_listeners`).
+- **Lege wizard-menu's/labels:** onboarding-vertalingen stonden onder de verkeerde flow-sectie; ze staan nu op de juiste plek. Dynamische velden (ruimtes, knoppen) worden op naam gekeyd zodat het label klopt.
+- **Wizard liep vast na de ruimte-stap:** ongeldige `show_progress`-overgang plus een reload midden in de wizard die de coordinator onderuithaalde (`KeyError`).
+- **Unload-fout** `'_asyncio.Task' object is not callable`: de bootstrap-sweep registreerde een Task in plaats van een callable op `async_on_unload`.
+- Geen scanscherm meer bij het koppelen van een reeds gevulde gateway.
 
 ## [1.0.0] - 2026-06-18
 
