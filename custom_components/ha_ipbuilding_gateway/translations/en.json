@@ -3,32 +3,32 @@
     "step": {
       "user": {
         "title": "IPBuilding Gateway",
-        "description": "Enter the IP address and port of the IPBuilding Gateway. The default host (127.0.0.1) is correct for the Supervisor add-on; change it for standalone Docker or remote installs.",
+        "description": "Enter the IP address and port of the IPBuilding Gateway. The default host (127.0.0.1) is correct for the Supervisor add-on; adjust for standalone Docker or a remote installation.",
         "data": {
           "host": "Host",
           "port": "Port"
         }
       },
       "hassio_confirm": {
-        "title": "IPBuilding Gateway add-on detected",
-        "description": "Add-on running at {url} (gateway {version}). Add it to Home Assistant?"
+        "title": "IPBuilding Gateway add-on discovered",
+        "description": "The {addon} add-on is running and reachable. Add it to Home Assistant?"
       },
       "discovery_confirm": {
         "title": "IPBuilding Gateway discovered",
-        "description": "Found IPBuilding Gateway {version} at {url}. Add it?"
+        "description": "Home Assistant found an IPBuilding Gateway at {url}. Add it?"
       }
     },
     "error": {
-      "gateway_unreachable": "Could not reach the gateway at {host}:{port}. Is it running?",
+      "gateway_unreachable": "Cannot reach the gateway at {host}:{port}. Is it running?",
       "connection_refused": "Connection refused — is the gateway running?"
     },
     "abort": {
       "already_configured": "This gateway is already configured.",
-      "cannot_connect": "Could not reach the gateway.",
-      "invalid_discovery_info": "The discovery payload was incomplete or malformed.",
+      "cannot_connect": "Cannot reach the gateway.",
+      "invalid_discovery_info": "The discovery payload was incomplete or invalid.",
       "already_discovered_addon": "This gateway is running as a Home Assistant add-on and is already discovered via Supervisor.",
       "not_ipbuilding_gateway_addon": "This Supervisor add-on is not the IPBuilding Gateway.",
-      "onboarding_complete": "Onboarding finished."
+      "onboarding_complete": "Onboarding complete."
     }
   },
   "options": {
@@ -40,8 +40,8 @@
         }
       },
       "onboarding_intro": {
-        "title": "Set up your installation",
-        "description": "We will scan the field bus, map rooms to Home Assistant areas, and prepare your devices. Button actions can be configured in a later update.",
+        "title": "Set up installation",
+        "description": "We scan the field bus, link rooms to HA areas, and prepare your devices. Button actions will follow in a later update.",
         "menu_options": {
           "start": "Start setup",
           "skip": "Skip for now"
@@ -52,30 +52,30 @@
         "description": "Scan complete. Added: {added}, changed: {changed}, removed: {removed}. Duration: {duration_s} s. Continue to room mapping."
       },
       "onboarding_rooms": {
-        "title": "Map rooms to areas",
+        "title": "Link rooms to areas",
         "description": "Link {room_count} IPBuilding room(s) to Home Assistant areas. Leave empty to create an area with the same name."
       },
       "onboarding_done": {
         "title": "Setup complete",
-        "description": "Discovery added {added} module(s). {room_count} room(s) mapped. {button_count} button(s) imported. You can re-run this wizard from integration options."
+        "description": "Discovery added {added} module(s). {room_count} room(s) linked. {button_count} button(s) imported. You can re-run this wizard from the integration options."
       },
       "onboarding_modules_refresh": {
-        "title": "Reading button configuration",
-        "description": "Reading getButtons from the IP1100PoE module(s)…"
+        "title": "Fetching button configuration",
+        "description": "Fetching getButtons from the IP1100PoE module(s)…"
       },
       "onboarding_buttons_overview": {
         "title": "Button configuration found",
-        "description": "Detected {button_count} physical button(s); {actionable_count} have actions configured. Warnings: {warning_count}. Continue to choose targets."
+        "description": "{button_count} physical button(s) found; {actionable_count} with action(s). Warnings: {warning_count}. Continue to choose targets."
       },
       "onboarding_buttons_review": {
-        "title": "Choose button targets",
-        "description": "Pick a light or switch for each configured button. Leave empty to skip an action. The wizard will create one automation per slot, default off."
+        "title": "Choose targets for buttons",
+        "description": "Pick a light or switch for each configured button. Leaving a row empty skips that action. The wizard creates one automation per slot, off by default."
       }
     }
   },
   "device_automation": {
     "trigger_type": {
-      "pressed": "Button pressed",
+      "pressed": "Pressed",
       "long_pressed": "Long pressed",
       "released": "Released"
     }
@@ -93,7 +93,7 @@
     },
     "button": {
       "discover_sweep": {
-        "name": "Run discovery sweep"
+        "name": "Start discovery sweep"
       }
     },
     "event": {

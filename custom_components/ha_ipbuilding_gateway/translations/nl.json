@@ -16,6 +16,28 @@
       "discovery_confirm": {
         "title": "IPBuilding Gateway ontdekt",
         "description": "Home Assistant heeft een IPBuilding Gateway gevonden op {url}. Toevoegen?"
+      }
+    },
+    "error": {
+      "gateway_unreachable": "Kan de gateway niet bereiken op {host}:{port}. Draait deze?",
+      "connection_refused": "Verbinding geweigerd — draait de gateway?"
+    },
+    "abort": {
+      "already_configured": "Deze gateway is al geconfigureerd.",
+      "cannot_connect": "Kan de gateway niet bereiken.",
+      "invalid_discovery_info": "Het discovery-payload was onvolledig of ongeldig.",
+      "already_discovered_addon": "Deze gateway draait als Home Assistant add-on en is al ontdekt via Supervisor.",
+      "not_ipbuilding_gateway_addon": "Deze Supervisor add-on is niet de IPBuilding Gateway.",
+      "onboarding_complete": "Onboarding afgerond."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IPBuilding Gateway Opties",
+        "menu_options": {
+          "run_onboarding": "Setup-wizard opnieuw uitvoeren"
+        }
       },
       "onboarding_intro": {
         "title": "Installatie instellen",
@@ -48,28 +70,6 @@
       "onboarding_buttons_review": {
         "title": "Doelen kiezen voor knoppen",
         "description": "Kies een licht of schakelaar voor elke geconfigureerde knop. Leeg laten slaat die actie over. De wizard maakt per slot één automatisering, standaard uit."
-      }
-    },
-    "error": {
-      "gateway_unreachable": "Kan de gateway niet bereiken op {host}:{port}. Draait deze?",
-      "connection_refused": "Verbinding geweigerd — draait de gateway?"
-    },
-    "abort": {
-      "already_configured": "Deze gateway is al geconfigureerd.",
-      "cannot_connect": "Kan de gateway niet bereiken.",
-      "invalid_discovery_info": "Het discovery-payload was onvolledig of ongeldig.",
-      "already_discovered_addon": "Deze gateway draait als Home Assistant add-on en is al ontdekt via Supervisor.",
-      "not_ipbuilding_gateway_addon": "Deze Supervisor add-on is niet de IPBuilding Gateway.",
-      "onboarding_complete": "Onboarding afgerond."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "IPBuilding Gateway Opties",
-        "menu_options": {
-          "run_onboarding": "Setup-wizard opnieuw uitvoeren"
-        }
       }
     }
   },

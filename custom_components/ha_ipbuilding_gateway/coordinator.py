@@ -55,8 +55,17 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._reconnect_task: asyncio.Task[None] | None = None
         self._stop_event = asyncio.Event()
         self._reconnect_delay = RECONNECT_BASE_DELAY
-        # Per-entity listeners: entity_id -> [callback(state)]
-        self._listeners: dict[str, list[Callable[[dict], None]]] = {}
+        # Per-entity listeners: entity_id -> [callback(state)].
+        # NOTE: this dict is named ``_entity_listeners`` (not ``_listeners``)
+        # to avoid colliding with the ``DataUpdateCoordinator`` base class's
+        # own ``self._listeners: dict[int, tuple[Callback, context | None]]``
+        # field. If we shadowed the base-class field with our own
+        # ``dict[str, list[Callback]]``, ``register_entity`` would store
+        # entries under string keys (entity ids) in a dict the base class
+        # expects to be keyed by int listener ids, and ``async_update_listeners``
+        # would crash with ``ValueError: not enough values to unpack`` /
+        # ``TypeError: callback() missing 'data'`` on the next refresh.
+        self._entity_listeners: dict[str, list[Callable[[dict], None]]] = {}
         self._lock = asyncio.Lock()
         self._data: dict[str, Any] = {}
         # Module metadata keyed by MAC, populated from the WebSocket `snapshot`
@@ -484,7 +493,7 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _notify(self, entity_id: str, data: dict) -> None:
         """Notify listeners for a specific entity."""
-        for cb in self._listeners.get(entity_id, []):
+        for cb in self._entity_listeners.get(entity_id, []):
             try:
                 cb(data)
             except Exception:
@@ -497,7 +506,7 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _notify_button(self, data: dict) -> None:
         """Notify button entities (routed by hardware id, not entity_id)."""
-        for cb in self._listeners.get(f"button:{data.get('id')}", []):
+        for cb in self._entity_listeners.get(f"button:{data.get('id')}", []):
             try:
                 cb(data)
             except Exception:
@@ -727,13 +736,13 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             entity_id: e.g. "10.10.1.30:relay:0" or "button:2DE341851900001F"
             callback: called with the new state data on each update.
         """
-        self._listeners.setdefault(entity_id, []).append(callback)
+        self._entity_listeners.setdefault(entity_id, []).append(callback)
 
     def unregister_entity(self, entity_id: str, callback: Callable[[dict], None]) -> None:
         """Remove a callback for an entity."""
-        if entity_id in self._listeners:
-            self._listeners[entity_id] = [
-                cb for cb in self._listeners[entity_id] if cb is not callback
+        if entity_id in self._entity_listeners:
+            self._entity_listeners[entity_id] = [
+                cb for cb in self._entity_listeners[entity_id] if cb is not callback
             ]
 
     # -------------------------------------------------------------------------

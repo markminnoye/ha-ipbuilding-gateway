@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -39,7 +40,8 @@ class OnboardingFlowMixin:
     _onboarding_entry: Any = None
     _discover_result: dict[str, Any] | None = None
     _rooms_list: list[str] = []
-    _discovery_progress_done: bool = False
+    _discover_task: asyncio.Task[None] | None = None
+    _modules_refresh_task: asyncio.Task[None] | None = None
     _buttons_cache: list[dict[str, Any]] = []
     _module_devices_by_mac: dict[str, dict[str, Any]] = {}
 
@@ -87,40 +89,78 @@ class OnboardingFlowMixin:
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Welcome step — start wizard or skip."""
-        if user_input is not None:
-            if user_input == "skip":
-                return await self._finish_onboarding(skipped=True)
-            self._discovery_progress_done = False
-            self._discover_result = None
-            return await self.async_step_onboarding_discovery()
-
         return self.async_show_menu(
             step_id="onboarding_intro",
             menu_options=["start", "skip"],
         )
 
+    async def async_step_start(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Begin the onboarding wizard.
+
+        Dispatched by HA when the operator clicks the *start* menu entry
+        in :meth:`async_step_onboarding_intro`. The menu always dispatches
+        via ``next_step_id`` with ``user_input=None`` (see HA core
+        ``data_entry_flow.py:362``), so the legacy ``if user_input is
+        not None`` branches in earlier versions of this step never ran.
+        """
+        self._discover_task = None
+        self._modules_refresh_task = None
+        self._discover_result = None
+        return await self.async_step_onboarding_discovery()
+
+    async def async_step_skip(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Skip the wizard and mark onboarding as completed-skipped.
+
+        Dispatched by HA when the operator clicks the *skip* menu entry
+        in :meth:`async_step_onboarding_intro`. Marks the config entry
+        so the bootstrap in ``__init__.async_setup_entry`` does not
+        re-open the wizard on the next reload.
+        """
+        return await self._finish_onboarding(skipped=True)
+
     async def async_step_onboarding_discovery(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Run a forced discovery sweep with progress UI."""
-        if user_input is not None:
-            return await self.async_step_onboarding_rooms()
+        """Run a forced discovery sweep with progress UI.
 
-        if not self._discovery_progress_done:
-            self._discovery_progress_done = True
-            progress_task = self.hass.async_create_task(
+        Canonical HA pattern (see ``components/mqtt/config_flow.py``):
+        the first invocation creates the asyncio task and returns
+        ``async_show_progress``; the flow manager re-invokes the step
+        when the task completes via ``call_configure``. The second
+        invocation ``await``s the (now-finished) task, then returns
+        ``async_show_progress_done(next_step_id=...)`` so HA leaves the
+        SHOW_PROGRESS state cleanly. The previous implementation used
+        a ``_discovery_progress_done`` bool to short-circuit on the
+        second call and returned ``async_show_form`` directly, which
+        violated ``data_entry_flow.py:400`` ("Show progress can only
+        transition to show progress or show progress done") and
+        stranded the wizard on the spinner.
+        """
+        if self._discover_task is None:
+            self._discover_task = self.hass.async_create_task(
                 self._onboarding_discover_task()
             )
             return self.async_show_progress(
                 step_id="onboarding_discovery",
                 progress_action="discovery",
-                progress_task=progress_task,
+                progress_task=self._discover_task,
             )
 
-        return self.async_show_form(
-            step_id="onboarding_discovery",
-            data_schema=vol.Schema({}),
-            description_placeholders=self._discovery_placeholders(),
+        # Second call: progress task is already finished. Await it to
+        # surface any exception, then transition out of SHOW_PROGRESS.
+        try:
+            await self._discover_task
+        except Exception as exc:  # noqa: BLE001 — task already logged
+            log.debug("Onboarding discovery raised on await: %s", exc)
+        finally:
+            self._discover_task = None
+
+        return self.async_show_progress_done(
+            next_step_id="onboarding_rooms"
         )
 
     async def _onboarding_discover_task(self) -> None:
@@ -152,8 +192,8 @@ class OnboardingFlowMixin:
         if user_input is not None:
             mappings: dict[str, str] = {}
             areas = ar.async_get(self.hass)
-            for index, room in enumerate(self._rooms_list):
-                area_id = user_input.get(f"area_{index}", "") or ""
+            for room in self._rooms_list:
+                area_id = user_input.get(room, "") or ""
                 if not area_id:
                     existing = areas.async_get_area_by_name(room)
                     area_id = existing.id if existing else ""
@@ -167,13 +207,16 @@ class OnboardingFlowMixin:
             )
             return await self.async_step_onboarding_modules_refresh()
 
+        # Key the schema by the gateway room name itself so HA renders it as
+        # the field label ("Gelijkvloers", "Buiten", "Inkom", …). The form is
+        # dynamic (N rooms) and HA translations are static JSON — there is no
+        # way to predefine a label per ``area_<n>`` for an arbitrary room
+        # count, so HA fell back to showing the raw key ("area_0"…"area_9").
+        # Room names are unique (collect_unique_rooms dedupes).
         schema_dict: dict[Any, Any] = {}
         placeholders: dict[str, str] = {"room_count": str(len(self._rooms_list))}
-        for index, room in enumerate(self._rooms_list):
-            schema_dict[vol.Optional(f"area_{index}", default="")] = (
-                selector.AreaSelector()
-            )
-            placeholders[f"room_{index}"] = room
+        for room in self._rooms_list:
+            schema_dict[vol.Optional(room, default="")] = selector.AreaSelector()
 
         return self.async_show_form(
             step_id="onboarding_rooms",
@@ -201,18 +244,33 @@ class OnboardingFlowMixin:
     async def async_step_onboarding_modules_refresh(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Reload modules so ``getButtons`` data lands before the button step."""
-        if user_input is not None:
-            return await self._button_overview_or_done()
+        """Reload modules so ``getButtons`` data lands before the button step.
 
-        progress_task = self.hass.async_create_task(
-            self._onboarding_modules_refresh_task()
-        )
-        return self.async_show_progress(
-            step_id="onboarding_modules_refresh",
-            progress_action="modules_refresh",
-            progress_task=progress_task,
-        )
+        Mirrors :meth:`async_step_onboarding_discovery` — the first
+        call starts the task and shows the progress spinner, the second
+        call (triggered by HA's progress completion callback) awaits
+        the finished task and transitions to the next step. Without
+        this, HA's progress state-machine raises *Show progress can
+        only transition to show progress or show progress done*.
+        """
+        if self._modules_refresh_task is None:
+            self._modules_refresh_task = self.hass.async_create_task(
+                self._onboarding_modules_refresh_task()
+            )
+            return self.async_show_progress(
+                step_id="onboarding_modules_refresh",
+                progress_action="modules_refresh",
+                progress_task=self._modules_refresh_task,
+            )
+
+        try:
+            await self._modules_refresh_task
+        except Exception as exc:  # noqa: BLE001 — task already logged
+            log.debug("Onboarding modules refresh raised on await: %s", exc)
+        finally:
+            self._modules_refresh_task = None
+
+        return await self._button_overview_or_done()
 
     async def _onboarding_modules_refresh_task(self) -> None:
         try:
@@ -280,8 +338,8 @@ class OnboardingFlowMixin:
 
         if user_input is not None:
             targets: dict[tuple[str, str], str] = {}
-            for hardware_id, slot in candidates:
-                entity_id = user_input.get(f"target_{hardware_id}_{slot}", "") or ""
+            for key, hardware_id, slot in self._review_field_keys(parsed, candidates):
+                entity_id = user_input.get(key, "") or ""
                 if entity_id:
                     targets[(hardware_id, slot)] = entity_id
             return await self._apply_button_targets(parsed, candidates, targets)
@@ -289,22 +347,40 @@ class OnboardingFlowMixin:
         if not candidates:
             return await self.async_step_onboarding_done()
 
+        # Key the schema by the human-readable button label so HA renders it
+        # as the field label. Same reason as the rooms step: the form is
+        # dynamic and HA translations are static JSON, so a raw key like
+        # ``target_<hwid>_<slot>`` would be shown verbatim.
         schema_dict: dict[Any, Any] = {}
-        placeholders: dict[str, str] = {}
-        for hardware_id, slot in candidates:
-            schema_dict[vol.Optional(f"target_{hardware_id}_{slot}", default="")] = (
-                selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain=["light", "switch"])
-                )
-            )
-            placeholders[f"label_{hardware_id}_{slot}"] = self._button_label(
-                parsed, hardware_id
+        for key, _hardware_id, _slot in self._review_field_keys(parsed, candidates):
+            schema_dict[vol.Optional(key, default="")] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain=["light", "switch"])
             )
         return self.async_show_form(
             step_id="onboarding_buttons_review",
             data_schema=vol.Schema(schema_dict),
-            description_placeholders=placeholders,
         )
+
+    def _review_field_keys(
+        self, parsed: list[Any], candidates: list[tuple[str, str]]
+    ) -> list[tuple[str, str, str]]:
+        """Return ``(field_key, hardware_id, slot)`` for each review candidate.
+
+        ``field_key`` is the readable button label used as the schema key so
+        HA shows it as the field label. Duplicate labels get a numeric suffix
+        to keep keys unique, and the order is deterministic so the submit
+        branch rebuilds the exact same keys to map answers back to
+        ``(hardware_id, slot)``.
+        """
+        keys: list[tuple[str, str, str]] = []
+        seen: dict[str, int] = {}
+        for hardware_id, slot in candidates:
+            label = self._button_label(parsed, hardware_id)
+            count = seen.get(label, 0) + 1
+            seen[label] = count
+            key = label if count == 1 else f"{label} ({count})"
+            keys.append((key, hardware_id, slot))
+        return keys
 
     def _button_label(self, parsed: list[Any], hardware_id: str) -> str:
         for b in parsed:

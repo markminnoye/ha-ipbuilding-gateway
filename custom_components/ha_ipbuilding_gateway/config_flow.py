@@ -25,6 +25,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import callback
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
@@ -282,11 +283,25 @@ class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> config_entries.OptionsFlow:
+        """Return the options flow handler.
 
-async def async_get_options_flow(
-    config_entry: ConfigEntry,
-) -> config_entries.OptionsFlow:
-    """Return the options flow handler."""
-    from .options_flow import IPBuildingOptionsFlowHandler
+        Must be defined on the ``ConfigFlow`` subclass — HA looks up
+        options flow via ``handler.async_get_options_flow(entry)`` on
+        the class that owns the domain, and falls back to
+        ``data_entry_flow.UnknownHandler`` when only a module-level
+        function is provided.
 
-    return IPBuildingOptionsFlowHandler(config_entry)
+        In HA 2026.6+ the flow manager injects the config entry id
+        through ``self.handler`` after construction; the handler class
+        reads the entry via the read-only ``OptionsFlow.config_entry``
+        property. We therefore do not pass ``config_entry`` to the
+        handler's constructor.
+        """
+        from .options_flow import IPBuildingOptionsFlowHandler
+
+        return IPBuildingOptionsFlowHandler()
