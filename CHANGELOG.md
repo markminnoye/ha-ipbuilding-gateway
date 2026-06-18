@@ -25,6 +25,9 @@ anders meldt.
 
 ## [Unreleased]
 
+### Changed
+- **Repository hernoemd** van `markminnoye/ipbuilding-gateway-ha` naar `markminnoye/ha-ipbuilding-gateway`. GitHub zet een 301-redirect in zodat bestaande clones, issues en HACS custom-repository URL's blijven werken. Geen impact op de integratie zelf, HA-domain (`ipbuilding_gateway_ha`), entity_id's of blueprints.
+
 ## [0.4.3] - 2026-06-18
 
 ### Fixed

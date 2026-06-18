@@ -26,10 +26,10 @@ blueprint:
     Voor gedimde verlichting: gebruik `button_dim`.
 
     Bugs / verbeteringen graag melden via
-    https://github.com/markminnoye/ipbuilding-gateway-ha/issues met
+    https://github.com/markminnoye/ha-ipbuilding-gateway/issues met
     label `cover-blueprint`.
   domain: automation
-  source_url: https://github.com/markminnoye/ipbuilding-gateway-ha/blob/main/custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_cover.yaml
+  source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_cover.yaml
 
   input:
     common_section:

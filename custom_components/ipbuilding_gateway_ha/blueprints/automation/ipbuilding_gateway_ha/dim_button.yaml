@@ -27,7 +27,7 @@ blueprint:
       4. Delete `ipbuilding_gateway_ha/dim_button.yaml` from your
          `config/blueprints/automation/` folder.
   domain: automation
-  source_url: https://github.com/markminnoye/ipbuilding-gateway-ha/blob/main/custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_dim.yaml
+  source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_dim.yaml
 
   input:
     button_entity:

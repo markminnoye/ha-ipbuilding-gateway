@@ -4,10 +4,10 @@
   "codeowners": ["@markminnoye"],
   "config_flow": true,
   "dependencies": ["automation"],
-  "documentation": "https://github.com/markminnoye/ipbuilding-gateway-ha",
+  "documentation": "https://github.com/markminnoye/ha-ipbuilding-gateway",
   "integration_type": "hub",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/markminnoye/ipbuilding-gateway-ha/issues",
+  "issue_tracker": "https://github.com/markminnoye/ha-ipbuilding-gateway/issues",
   "quality_scale": "bronze",
   "version": "0.4.3",
   "zeroconf": ["_ipbgw._tcp.local."]

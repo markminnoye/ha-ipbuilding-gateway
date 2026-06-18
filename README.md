@@ -1,7 +1,7 @@
 # Home Assistant Compannion App for IPBuilding Gateway
 
-[![Version](https://img.shields.io/github/v/release/markminnoye/ipbuilding-gateway-ha)](https://github.com/markminnoye/ipbuilding-gateway-ha/releases/latest)
-[![License](https://img.shields.io/github/license/markminnoye/ipbuilding-gateway-ha)](LICENSE)
+[![Version](https://img.shields.io/github/v/release/markminnoye/ha-ipbuilding-gateway)](https://github.com/markminnoye/ha-ipbuilding-gateway/releases/latest)
+[![License](https://img.shields.io/github/license/markminnoye/ha-ipbuilding-gateway)](LICENSE)
 [![Quality Scale](https://img.shields.io/badge/quality%20scale-bronze-brightgreen)](https://developers.home-assistant.io/docs/core/integration-quality-scale/)
 
 Control your **IPBuilding** field bus from Home Assistant through the open
@@ -24,7 +24,7 @@ modules are not contacted directly from Home Assistant.
 > (typically the HA add-on on the same host, or a gateway on your IPBuilding
 > VLAN). Add-on and companion follow independent semver; use the
 > [latest gateway release](https://github.com/markminnoye/IPBuilding-Gateway/releases)
-> and the [latest companion release](https://github.com/markminnoye/ipbuilding-gateway-ha/releases).
+> and the [latest companion release](https://github.com/markminnoye/ha-ipbuilding-gateway/releases).
 
 ## Features
 
@@ -75,17 +75,17 @@ This integration is a **HACS custom repository** (not in the default store). Use
 the link below to add it in HACS, then download **IPBuilding Gateway HA** and
 restart Home Assistant.
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ipbuilding-gateway-ha&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ha-ipbuilding-gateway&category=integration)
 
 Direct link (same target):
 
 ```text
-https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ipbuilding-gateway-ha&category=integration
+https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ha-ipbuilding-gateway&category=integration
 ```
 
 If HACS shows *Repository … not found* or a broken confirmation dialog, add the
 repo manually: **HACS → Integrations → ⋮ → Custom repositories** →
-`https://github.com/markminnoye/ipbuilding-gateway-ha` (type **Integration**),
+`https://github.com/markminnoye/ha-ipbuilding-gateway` (type **Integration**),
 then search and download **IPBuilding Gateway HA**.
 
 ### Manual installation
@@ -266,7 +266,7 @@ automations to HA → retire IPBox on the field bus).
 
 ## Issues and feature requests
 
-Use the [issue tracker](https://github.com/markminnoye/ipbuilding-gateway-ha/issues).
+Use the [issue tracker](https://github.com/markminnoye/ha-ipbuilding-gateway/issues).
 When reporting a bug, include:
 
 - Home Assistant version
