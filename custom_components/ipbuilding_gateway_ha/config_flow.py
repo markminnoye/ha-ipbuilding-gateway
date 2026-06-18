@@ -27,7 +27,12 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from .const import DEFAULT_API_PORT, DISCOVERY_SCHEMA_VERSION, DOMAIN
+from .const import (
+    DEFAULT_API_HOST,
+    DEFAULT_API_PORT,
+    DISCOVERY_SCHEMA_VERSION,
+    DOMAIN,
+)
 from .discovery_parser import (
     GatewayDiscoveryInfo,
     parse_zeroconf_properties as _parse_zeroconf_properties,
@@ -40,7 +45,7 @@ ADDON_SLUG = "ipbuilding_gateway"
 # Voluptuous schema for the manual fallback form.
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_HOST): str,
+        vol.Required(CONF_HOST, default=DEFAULT_API_HOST): str,
         vol.Required(CONF_PORT, default=DEFAULT_API_PORT): int,
     }
 )

@@ -98,10 +98,35 @@ Light/switch entities send **`DIM`** commands (not relay-style `ON`/`OFF`) for
 `device_type == "dimmer"`. Brightness follows the service call, last known
 level, or 100%.
 
-### Button events
+### Button events (v0.4.0+)
 
-Physical buttons use `EventEntity` with `event_types: ["press"]` and fire
-`ipbuilding_gateway_ha.button_pressed` on the HA event bus.
+Physical buttons use `EventEntity` with
+`event_types: ["press", "long_press", "release"]` and `device_class:
+EventDeviceClass.BUTTON`. Three bus events are fired with the same
+`{"hardware_id": "<id>", "action": "<press|long_press|release>"}` payload:
+
+| Bus event | Trigger |
+|-----------|---------|
+| `ipbuilding_gateway_ha.button_pressed` | Short press |
+| `ipbuilding_gateway_ha.button_long_pressed` | Held past the per-button threshold (default 1.5s, seeded from `getButtons.func2.holdSeconds`) |
+| `ipbuilding_gateway_ha.button_released` | Let go — always fires, even on short presses |
+
+The companion also exposes three device triggers in the automation
+editor UI: **Button pressed**, **Long pressed**, **Released**.
+
+### Dim-button blueprint
+
+A packaged blueprint `IPBuilding button — toggle + dim during hold` is
+shipped with the companion at
+`blueprints/automation/ipbuilding_gateway_ha/dim_button.yaml`. It
+handles Hue-style continuous dimming during hold with automatic
+direction-flip on release and on hitting 1 % / 100 %.
+
+From **Settings → Automations → Blueprints** (or **Create automation → Use
+blueprint**) the blueprint appears as `ipbuilding_gateway_ha/dim_button.yaml`
+after the integration has loaded once; missing files are copied automatically
+from the companion package into your `config/blueprints/automation/` folder.
+Pick it, fill in the input fields, and you have a working single-button dimmer.
 
 ## Development
 

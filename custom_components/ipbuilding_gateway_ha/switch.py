@@ -7,7 +7,7 @@ as HA switch entities.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
@@ -92,6 +92,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up switch entities from a config entry."""
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
+
     # ``devices_snapshot()`` is the canonical read API; it works on every
     # code path (REST fallback list, REST cached dict, WebSocket snapshot).
     devices = coordinator.devices_snapshot()

@@ -432,6 +432,10 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         elif msg_type == "discovery_completed":
             await self.async_fetch_gateway_status()
             self._notify_gateway()
+            # Heavy refresh + platform diff off the receive loop so
+            # state_changed frames are not delayed by the 5 s REST
+            # timeout on /api/v1/devices. See :meth:`_refresh_after_discovery`.
+            self.hass.async_create_task(self._refresh_after_discovery())
         else:
             log.debug("Unknown WS message type: %s", msg_type)
 
@@ -455,6 +459,25 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 cb(data)
             except Exception:
                 log.exception("Button listener error")
+
+    async def _refresh_after_discovery(self) -> None:
+        """Re-fetch modules + devices and dispatch diff after a discovery sweep.
+
+        Runs as a background task scheduled by the WS receive loop so
+        a 5 s ``/api/v1/devices`` REST timeout does not block
+        ``state_changed`` frames on the same connection. Failures are
+        logged and swallowed: a stale snapshot is preferable to a
+        crashed coordinator because discovery has already completed on
+        the gateway side.
+        """
+        try:
+            await self.async_fetch_modules()
+            await self._async_update_data()
+            devices = self.devices_snapshot()
+            self._notify_all(devices)
+            self._schedule_diff(devices)
+        except Exception:
+            log.exception("Post-discovery refresh failed")
 
     # -------------------------------------------------------------------------
     # Dynamic entity lifecycle

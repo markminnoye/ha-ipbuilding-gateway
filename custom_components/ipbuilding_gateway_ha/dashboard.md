@@ -1,6 +1,6 @@
 # Dashboard — Gateway diagnostics
 
-De companion levert een Tier-1 **IPBuilding Gateway**-device met twee entities
+De companion levert een Tier-1 **IPBuilding Gateway**-device met drie entities
 voor operator-diagnostiek en -acties:
 
 | Entity | Categorie | Doel |
@@ -8,7 +8,8 @@ voor operator-diagnostiek en -acties:
 | `sensor.ipbuilding_gateway_gateway_status` | `diagnostic` | Aggregate gateway-status: `ok` / `degraded` / `unhealthy` + attributen (`issues`, `subsystems`, `version`, `uptime_seconds`, `updated_at`) |
 | `button.ipbuilding_gateway_run_discovery_sweep` | `config` | Forceert een ARP-sweep + HTTP-identify op de gateway (`POST /api/v1/discover`) |
 
-Beide staan op de Tier-1 hub in **Instellingen → Apparaten → IPBuilding Gateway**.
+Deze entities staan op de Tier-1 hub in **Instellingen → Apparaten → IPBuilding Gateway**.
+
 Ze zijn bewust als `diagnostic` / `config` gecategoriseerd zodat ze niet tussen
 de lichten/dimmers op een Overview-dashboard verschijnen.
 
