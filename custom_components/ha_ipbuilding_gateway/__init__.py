@@ -71,11 +71,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _maybe_launch_onboarding(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Open the onboarding wizard after the first successful setup."""
-    await hass.config_entries.flow.async_init(
-        DOMAIN,
-        context={"source": "onboarding", "entry_id": entry.entry_id},
-    )
+    """Open the onboarding wizard after the first successful setup.
+
+    Triggers the standard OptionsFlow for the just-created entry with
+    ``flow_id`` set to start a fresh flow, and a flag on
+    ``hass.data[DOMAIN]`` so the menu step auto-selects the
+    *Run setup wizard again* path. The operator can also reach the
+    same flow manually from *Settings → Devices & Services →
+    IPBuilding Gateway HA → Configure*.
+    """
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][f"{entry.entry_id}_auto_onboard"] = True
+    await hass.config_entries.options.async_init(entry.entry_id)
 
 
 async def _bootstrap_devices(hass: HomeAssistant, entry_id: str) -> None:

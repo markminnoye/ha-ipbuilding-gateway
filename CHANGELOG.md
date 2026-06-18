@@ -25,6 +25,9 @@ anders meldt.
 
 ## [Unreleased]
 
+### Fixed
+- **Onboarding wizard wordt nu daadwerkelijk gestart** na de eerste installatie. Eerdere implementie gebruikte `hass.config_entries.flow.async_init(DOMAIN, context={"source": "onboarding", ...})`, wat geen geldige HA `source` is — HA liet de flow nooit zien. De wizard draait nu als een OptionsFlow met een `hass.data`-flag die het menuspoor overslaat en meteen in `onboarding_intro` stapt. Handmatig herstarten kan nog steeds via **Instellingen → Apparaten & Diensten → IPBuilding Gateway HA → Configure → Run setup wizard again**.
+
 ### Added
 - **Onboarding wizard (Sprint 1):** na eerste installatie opent een setup-wizard (overslaan mogelijk) met veldbus discovery sweep (visuele voortgang + resultaat), ruimte→HA-area mapping, en herstart via integratie-opties.
 - **Button mapping wizard stap (Sprint 2):** leest `getButtons` van de inputmodule(s) en stelt per knop een doel-entity (light/switch) voor. Genereert per `func1`/`func2`/`release` een HA automation met native device-trigger, standaard uitgeschakeld. `allOn`/`allOff` worden als module-scope groep geëmiteerd. Numerieke `outType` waarden (0/1/160/255) uit de IPBox autonomy-formaat worden genormaliseerd.

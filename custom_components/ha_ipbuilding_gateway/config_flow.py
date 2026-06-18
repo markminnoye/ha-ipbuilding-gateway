@@ -38,7 +38,6 @@ from .discovery_parser import (
     GatewayDiscoveryInfo,
     parse_zeroconf_properties as _parse_zeroconf_properties,
 )
-from .onboarding_flow import OnboardingFlowMixin
 
 log = logging.getLogger(__name__)
 
@@ -79,32 +78,13 @@ async def _validate_gateway(host: str, port: int) -> tuple[bool, str | None, str
         return False, "gateway_unreachable", None
 
 
-class IPBuildingConfigFlow(OnboardingFlowMixin, ConfigFlow, domain=DOMAIN):
+class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IPBuilding Gateway HA."""
 
     VERSION = 1
 
     def __init__(self) -> None:
         self._discovery_info: GatewayDiscoveryInfo | None = None
-
-    # ------------------------------------------------------------------
-    # Post-install onboarding (launched from async_setup_entry)
-    # ------------------------------------------------------------------
-
-    async def async_step_onboarding(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Entry point when ``context['source'] == 'onboarding'``."""
-        entry_id = self.context.get("entry_id")
-        if not entry_id:
-            return self.async_abort(reason="invalid_discovery_info")
-
-        entry = self.hass.config_entries.async_get_entry(entry_id)
-        if entry is None:
-            return self.async_abort(reason="cannot_connect")
-
-        self._onboarding_entry = entry
-        return await self.async_step_onboarding_intro(user_input)
 
     # ------------------------------------------------------------------
     # User (manual) step
