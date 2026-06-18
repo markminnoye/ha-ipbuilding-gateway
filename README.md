@@ -130,28 +130,69 @@ button is in
 [`custom_components/ipbuilding_gateway_ha/dashboard.md`](custom_components/ipbuilding_gateway_ha/dashboard.md)
 (includes optional HACS **button-card** notes).
 
-## Blueprints
+## Button automations
 
-The companion ships a small set of automation blueprints targeting
-IP1100PoE physical buttons. They are copied into
-`config/blueprints/automation/ipbuilding_gateway_ha/` automatically when
-the integration loads and are upgraded in place on every companion
-release.
+The companion does **not** ship automation blueprints to the operator's
+HA Blueprint picker as of `v0.4.0-rc.11`. The packaged blueprint files
+remain in this repository for reference and for the source-only tests:
+[`blueprints/automation/ipbuilding_gateway_ha/`](custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/).
 
-| Blueprint | When to use |
-|-----------|-------------|
-| [`button_toggle`](custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_toggle.yaml) | Single tap toggles a light or switch |
-| [`button_standard`](custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_standard.yaml) | Short and/or long press, each with on / off / toggle / scene for an entity, multiple entities, or all entities in an area |
-| [`button_dim`](custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_dim.yaml) | Toggle on short press, dim while held with auto direction-flip (requires an `input_boolean` helper) |
-| [`button_cover`](custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/button_cover.yaml) | Hold = open or close a curtain / screen, release = stop |
+To wire an IP1100PoE physical button to a lamp, dimmer, cover, or
+scene, use one of the following paths.
 
-The legacy `dim_button` blueprint is shipped only as a deprecation stub
-that surfaces a `persistent_notification` to migrate to `button_dim.yaml`.
-New automations should never reference it.
+### 1. Community blueprint (recommended for most users)
 
-Each blueprint lets you set an automation alias and area directly. Use the
-friendly button name (visible in the entity picker), not the `event.<id>`
-entity id, for the alias — the entity id is intentionally not human-readable.
+The HA community maintains a number of blueprints that work with the
+event entities this companion creates (`event.<hardware_id>` with
+`press`, `long_press`, and `release` event types):
+
+- **[Philips Hue Dimmer Switch (Z2M) — Ultimate Controller](https://community.home-assistant.io/t/z2m-philips-hue-dimmer-switch-ultimate-controller-device-triggers-double-clicks/977875)**
+  matches our `press` / `long_press` / `release` semantics and supports
+  on/off buttons, dim-up, dim-down, and double-click.
+- **[IKEA STYRBAR 4-Button Remote (ZHA / MQTT)](https://gist.github.com/ivvil/08c95674732b51bc4ccf79938471cdc9)**
+  is configurable per button with press and press-and-hold actions.
+
+Install via HACS → Frontend → "Add repository" → import by URL, or via
+`ha_import_blueprint`. Then pick the event entity of your physical
+button as the trigger.
+
+### 2. Standard HA UI flow
+
+From the device page (`Instellingen → Apparaten & entiteiten →
+<jouw knop> → ... → '+ Toevoegen aan' → Maak automatisering`), or
+from `Instellingen → Automatiseringen & scènes → + Maak automatisering
+→ Maak nieuwe automatisering`, build the automation manually:
+
+- **Trigger**: state trigger on the event entity, `to: "press"`
+  (and optionally `to: "long_press"`, `to: "release"`).
+- **Action**: `light.toggle` (short press), or for smooth dim
+  during hold:
+  ```yaml
+  - repeat:
+      while:
+        - condition: trigger
+          id: hold
+      sequence:
+        - action: light.turn_on
+          target:
+            entity_id: !input target_light
+          data:
+            brightness_step_pct: -10
+            transition: 0.2
+        - delay:
+            milliseconds: 200
+  ```
+- **Save**: the popup asks for a name. Use the friendly button name
+  (e.g. "Keuken wandknop → Keuken LED") instead of the `event.<id>`.
+
+### 3. YAML reference (advanced)
+
+The packaged blueprints in this repo (`button_toggle`,
+`button_standard`, `button_dim`, `button_cover`) demonstrate the
+patterns. Copy the `trigger` and `action` blocks into your own
+`automations.yaml` and adapt the entity IDs and selectors.
+
+## Actions
 
 ## Actions
 

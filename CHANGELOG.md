@@ -25,6 +25,16 @@ anders meldt.
 
 ## [Unreleased]
 
+## [0.4.0-rc.11] - 2026-06-18
+
+### Changed
+- **Packaged blueprints niet meer in de HA Blueprint-picker** — `async_install_packaged_blueprints` is vanaf nu een no-op. De blueprint-files blijven in de repo (referentie + source-only tests), maar worden niet meer naar `config/blueprints/automation/ipbuilding_gateway_ha/` gekopieerd. De publieke API (`async_install_packaged_blueprints`, `invalidate_packaged_blueprints_cache`) blijft bestaan voor backward compatibiliteit. De README-sectie is herschreven: "Button automations" wijst de operator op community-blueprints (Z2M Hue Dimmer Ultimate Controller, IKEA STYRBAR) en de standaard HA-flow.
+- **`manifest.json` dependencies** — `blueprint` is verwijderd (de companion shipt niets meer naar HA-blueprint).
+
+### Notes
+- **Bestaande installs** — `config/blueprints/automation/ipbuilding_gateway_ha/*.yaml` files blijven staan op HA. De operator kan ze zelf verwijderen via de HA Blueprint-picker of de filesystem. Bestaande automations die `use_blueprint` refereren blijven werken totdat de operator de blueprint-files verwijdert.
+- **Nieuwe installs** — De Blueprint-picker toont geen IPBuilding-blueprints meer. Operators bouwen acties via community-blueprints of de standaard HA-flow.
+
 ## [0.4.0-rc.10] - 2026-06-18
 
 ### Changed
