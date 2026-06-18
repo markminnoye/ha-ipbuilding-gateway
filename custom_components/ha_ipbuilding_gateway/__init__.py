@@ -186,5 +186,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_update_listener(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> None:
-    """Handle config entry updates."""
+    """Handle config entry updates.
+
+    The onboarding wizard (an OptionsFlow) writes entry options/data several
+    times — room mappings, button automations, the completion flag. Reloading
+    the integration mid-wizard tears down ``hass.data[DOMAIN][entry_id]`` under
+    the running flow, so the coordinator lookup raises ``KeyError(entry_id)``
+    and the wizard breaks. Skip the reload while an options flow for this entry
+    is in progress; room areas are written straight to the device registry, so
+    they take effect without a reload. The flow's final options write (after it
+    is no longer in progress) still triggers one clean reload.
+    """
+    if hass.config_entries.options.async_progress_by_handler(entry.entry_id):
+        return
     await hass.config_entries.async_reload(entry.entry_id)

@@ -277,7 +277,18 @@ class OnboardingFlowMixin:
         finally:
             self._modules_refresh_task = None
 
-        return await self._button_overview_or_done()
+        # The refresh task has populated ``self._buttons_cache``; decide the
+        # next step now and hand control back to HA via
+        # ``async_show_progress_done``. Returning a form directly here is
+        # illegal while the step is in the SHOW_PROGRESS state (HA raises
+        # "Show progress can only transition to show progress or show
+        # progress done"), which is what previously froze the wizard.
+        next_step = (
+            "onboarding_buttons_overview"
+            if self._buttons_cache
+            else "onboarding_done"
+        )
+        return self.async_show_progress_done(next_step_id=next_step)
 
     async def _onboarding_modules_refresh_task(self) -> None:
         try:
@@ -292,11 +303,6 @@ class OnboardingFlowMixin:
         except Exception as exc:
             log.warning("Onboarding getButtons fetch failed: %s", exc)
             self._buttons_cache = []
-
-    async def _button_overview_or_done(self) -> ConfigFlowResult:
-        if not self._buttons_cache:
-            return await self.async_step_onboarding_done()
-        return await self.async_step_onboarding_buttons_overview()
 
     async def async_step_onboarding_buttons_overview(
         self, user_input: dict[str, Any] | None = None
