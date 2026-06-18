@@ -25,6 +25,11 @@ anders meldt.
 
 ## [Unreleased]
 
+## [0.4.0-rc.7] - 2026-06-18
+
+### Fixed
+- **YAML 1.1 boolean coercion in blueprint `select` opties** — `value: on` en `value: off` werden door YAML als booleans (`True`/`False`) ingelezen, waardoor HA's `select`-validator ze afkeurde met `expected str for dictionary value @ data['...']['value']. Got None`. Alle optie-velden in `button_standard.yaml` zijn nu expliciet gequote (`"on"`, `"off"`, `"none"`, `"toggle"`, `"activate_scene"`). Regression-guard in `tests/test_blueprints_source.py::test_select_option_values_are_strings`.
+
 ## [0.4.0-rc.6] - 2026-06-18
 
 ### Added

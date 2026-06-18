@@ -67,15 +67,15 @@ blueprint:
             select:
               options:
                 - label: Geen (alleen reageren op lang indrukken)
-                  value: none
+                  value: "none"
                 - label: Aan
-                  value: on
+                  value: "on"
                 - label: Uit
-                  value: off
+                  value: "off"
                 - label: Toggle
-                  value: toggle
+                  value: "toggle"
                 - label: Scene activeren
-                  value: activate_scene
+                  value: "activate_scene"
 
         press_target_kind:
           name: Doeltype
@@ -128,15 +128,15 @@ blueprint:
             select:
               options:
                 - label: Geen
-                  value: none
+                  value: "none"
                 - label: Aan
-                  value: on
+                  value: "on"
                 - label: Uit
-                  value: off
+                  value: "off"
                 - label: Toggle
-                  value: toggle
+                  value: "toggle"
                 - label: Scene activeren
-                  value: activate_scene
+                  value: "activate_scene"
 
         long_press_target_kind:
           name: Doeltype

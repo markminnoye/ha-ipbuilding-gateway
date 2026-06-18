@@ -13,6 +13,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 _REPO = Path(__file__).resolve().parents[1]
 _BLUEPRINT_DIR = (
     _REPO
@@ -176,3 +178,50 @@ def test_cover_blueprint_uses_hold_and_release_triggers() -> None:
     text = path.read_text(encoding="utf-8")
     assert 'to: "long_press"' in text
     assert 'to: "release"' in text
+
+
+def test_select_option_values_are_strings() -> None:
+    """Every ``select`` option ``value`` must be a YAML string, not a bool.
+
+    YAML 1.1 parses ``on``/``off``/``yes``/``no`` as booleans, so
+    ``value: on`` arrives in Home Assistant as the boolean ``True``.
+    The ``select`` selector validates values as ``str`` and rejects
+    them with::
+
+        Invalid blueprint: expected str for dictionary value
+        @ data['blueprint']['input']['...']['value']. Got <bool>
+
+    Quoting (e.g. ``value: "on"``) keeps the value a string. This test
+    parses every shipped blueprint and asserts the invariant.
+    """
+    import re
+
+    yaml = pytest.importorskip("yaml")
+
+    option_re = re.compile(
+        r"^\s*-\s*label:\s*(?P<label>[^\n]+)\n"
+        r"\s*value:\s*(?P<value>[^\n]+)\n",
+        re.MULTILINE,
+    )
+    bad: list[str] = []
+    for path in _shipped_blueprints():
+        if path.name == "dim_button.yaml":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for match in option_re.finditer(text):
+            raw_value = match.group("value").strip()
+            # Skip when the value is already quoted - YAML keeps it as a string.
+            if raw_value.startswith('"') or raw_value.startswith("'"):
+                continue
+            # Parse just the value to see if YAML would coerce it to bool.
+            parsed = yaml.safe_load(f"v: {raw_value}")
+            if not isinstance(parsed, dict) or not isinstance(parsed.get("v"), str):
+                bad.append(
+                    f"{path.name}: option {match.group('label').strip()!r} "
+                    f"value {raw_value!r} parses as "
+                    f"{type(parsed.get('v')).__name__ if isinstance(parsed, dict) else type(parsed).__name__}"
+                )
+    assert not bad, (
+        "YAML 1.1 boolean coercion: quote select option values to keep them "
+        "as strings (e.g. `value: \"on\"`):\n  - " + "\n  - ".join(bad)
+    )
