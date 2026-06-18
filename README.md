@@ -55,37 +55,7 @@ Platforms created by this integration: `light`, `switch`, `button`, `sensor`.
 
 ## Installation
 
-Install the **gateway** and **companion** together. Version numbers are not
-kept in lockstep — the two repos follow independent semver. A release of
-one does not require a release of the other. Breaking changes (if any)
-are called out in each `CHANGELOG.md` under a `### Breaking:` section.
-
-### Upgrading from a pre-1.0 install?
-
-This is a breaking release. The integration's Home Assistant domain changed from `ipbuilding_gateway_ha` to `ha_ipbuilding_gateway`, and bus event-types changed accordingly.
-
-Before updating:
-
-1. **Settings → Devices & Services → Integrations → IPBuilding Gateway HA** → ⋯ → Delete. Confirm when prompted.
-2. Update the integration in HACS (the repository is now `markminnoye/ha-ipbuilding-gateway`).
-3. Restart Home Assistant.
-4. Re-add the integration from the **Discovered** list (or manually). All entities re-appear with new IDs (`light.ha_ipbuilding_gateway_*`, `switch.ha_ipbuilding_gateway_*`, `event.ha_ipbuilding_gateway_*`, `sensor.ha_ipbuilding_gateway_*`).
-5. Move any custom blueprints from `config/blueprints/automation/ipbuilding_gateway_ha/` to `config/blueprints/automation/ha_ipbuilding_gateway/` (or recreate them in the UI).
-6. Update Lovelace cards, scripts, and automations that reference the old entity IDs or the old bus event-types (`ipbuilding_gateway_ha.button_*` → `ha_ipbuilding_gateway.button_*`).
-7. If you imported button mappings via `scripts/import_ipbox_to_ha.py` in the gateway repo, re-run it: the gateway script now writes the new event-types automatically.
-
-No data is lost in the gateway itself (`devices.json` is on the gateway filesystem, not in HA), and the gateway add-on's `discovery:` key is updated to match the new domain.
-
-### 1. Gateway add-on (HA OS / Supervised)
-
-[![Add add-on repository](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2FIPBuilding-Gateway)
-
-See the [add-on documentation](https://github.com/markminnoye/IPBuilding-Gateway/blob/main/ipbuilding_gateway/DOCS.md)
-for `devices.json`, options, and field-bus networking.
-
-### 2. Companion integration (HACS, recommended)
-
-Make sure the [prerequisites](#prerequisites) are met before installing.
+### 1. Companion integration (HACS, recommended)
 
 This integration is a **HACS custom repository** (not in the default store). Use
 the link below to add it in HACS, then download **IPBuilding Gateway HA** and
@@ -104,6 +74,37 @@ repo manually: **HACS → Integrations → ⋮ → Custom repositories** →
 `https://github.com/markminnoye/ha-ipbuilding-gateway` (type **Integration**),
 then search and download **IPBuilding Gateway HA**.
 
+### 2. Gateway add-on (HA OS / Supervised)
+
+[![Add add-on repository](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2FIPBuilding-Gateway)
+
+Or: **Settings → Add-ons → Add-on Store → ⋮ → Repositories**
+
+```text
+https://github.com/markminnoye/IPBuilding-Gateway
+```
+
+### 3. Configure and start the gateway add-on
+
+**Add-on Store** → **IPBuilding Gateway** → **Install**
+
+Then follow the [add-on documentation](https://github.com/markminnoye/IPBuilding-Gateway/blob/main/ipbuilding_gateway/DOCS.md) for:
+
+- copying or generating `devices.json`
+- add-on **options** (hub IP, discovery, timeouts)
+- **starting** the add-on and reading logs
+
+### 4. Link in Home Assistant
+
+With the add-on **running** and the companion **installed**:
+
+**Settings → Devices & Services → Discovered** → **IPBuilding Gateway HA** →
+**Add**
+
+On HA OS the add-on registers via **Supervisor discovery**. On a standalone
+gateway the companion listens for **mDNS** (`_ipbgw._tcp.local.`). When both
+apply, duplicate entries are suppressed automatically.
+
 ### Manual installation
 
 1. Copy the `custom_components/ha_ipbuilding_gateway` directory from this
@@ -115,18 +116,8 @@ then search and download **IPBuilding Gateway HA**.
 
 ## Configuration
 
-The integration is configured entirely through the Home Assistant UI — no YAML
-is required for setup.
-
-### Discovered (recommended)
-
-1. Start the **IPBuilding Gateway** add-on (or standalone gateway).
-2. Go to **Settings → Devices & Services → Discovered**.
-3. Select **IPBuilding Gateway HA** and confirm.
-
-On HA OS the add-on registers via **Supervisor discovery**. On a standalone
-gateway the companion listens for **mDNS** (`_ipbgw._tcp.local.`). When both
-apply, duplicate entries are suppressed automatically.
+Use the steps above for normal installation. The following is reference for
+non-standard setups where Supervisor / mDNS discovery is blocked.
 
 ### Manual fallback
 
@@ -149,8 +140,8 @@ button is in
 ## Button automations
 
 The companion does **not** ship automation blueprints to the operator's
-HA Blueprint picker as of `v0.4.0-rc.11`. The packaged blueprint files
-remain in this repository for reference and for the source-only tests:
+HA Blueprint picker. The packaged blueprint files remain in this repository
+for reference and for the source-only tests:
 [`blueprints/automation/ha_ipbuilding_gateway/`](custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/).
 
 To wire an IP1100PoE physical button to a lamp, dimmer, cover, or
@@ -174,10 +165,10 @@ button as the trigger.
 
 ### 2. Standard HA UI flow
 
-From the device page (`Instellingen → Apparaten & entiteiten →
-<jouw knop> → ... → '+ Toevoegen aan' → Maak automatisering`), or
-from `Instellingen → Automatiseringen & scènes → + Maak automatisering
-→ Maak nieuwe automatisering`, build the automation manually:
+From the device page (`Settings → Devices & entities →
+<your button> → ... → '+ Add to' → Create automation`), or
+from `Settings → Automations & scenes → + Create automation
+→ Create new automation`, build the automation manually:
 
 - **Trigger**: state trigger on the event entity, `to: "press"`
   (and optionally `to: "long_press"`, `to: "release"`).
@@ -207,8 +198,6 @@ The packaged blueprints in this repo (`button_toggle`,
 `button_standard`, `button_dim`, `button_cover`) demonstrate the
 patterns. Copy the `trigger` and `action` blocks into your own
 `automations.yaml` and adapt the entity IDs and selectors.
-
-## Actions
 
 ## Actions
 
