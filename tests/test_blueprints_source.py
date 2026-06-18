@@ -236,6 +236,32 @@ def test_toggle_blueprint_uses_entity_selector_not_target() -> None:
     )
 
 
+def test_toggle_blueprint_has_no_automation_name_input() -> None:
+    """`button_toggle.yaml` declares no `automation_name` field or `alias:`.
+
+    Removing the field lets the Home Assistant save popup fill in the
+    alias, avoiding the mismatch between `automation_name` and the
+    blueprint-name that the popup uses as default. Operators type the
+    friendly name (e.g. "Keuken wandknop → Keuken LED") directly in
+    the popup that appears after pressing "Opslaan".
+    """
+    path = _BLUEPRINT_DIR / "button_toggle.yaml"
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    assert "automation_name" not in text, (
+        "button_toggle.yaml must not declare an `automation_name` input. "
+        "The Home Assistant save popup fills in the alias; declaring it "
+        "as a blueprint input produces a confusing mismatch with the "
+        "blueprint-name the popup uses as default."
+    )
+    # Geen `alias:` op het automation-niveau — laat de popup hem invullen.
+    assert "alias: !input" not in text, (
+        "button_toggle.yaml must not declare `alias: !input ...`. "
+        "Let Home Assistant's save popup own the alias."
+    )
+
+
 def test_standard_blueprint_uses_target_selector() -> None:
     """`button_standard.yaml` must use a `target:` selector per phase.
 

@@ -25,6 +25,11 @@ anders meldt.
 
 ## [Unreleased]
 
+## [0.4.0-rc.10] - 2026-06-18
+
+### Changed
+- **`button_toggle.yaml` (v4)** — `automation_name` input en `alias: !input automation_name` zijn verwijderd. De automation-naam wordt nu direct in de Home Assistant save-popup ingevuld (die opent altijd bij het aanmaken van een nieuwe automation). De popup prefilt de blueprint-name "IPBuilding wandknop — toggle"; de operator typt de gewenste friendly naam en bevestigt. Dit voorkomt de mismatch tussen de blueprint-input en de popup-default.
+
 ## [0.4.0-rc.9] - 2026-06-18
 
 ### Notes
