@@ -364,15 +364,63 @@ class OnboardingFlowMixin:
         # as the field label. Same reason as the rooms step: the form is
         # dynamic and HA translations are static JSON, so a raw key like
         # ``target_<hwid>_<slot>`` would be shown verbatim.
+        #
+        # Pre-fill each selector with the entity the input module already
+        # targets, so the existing button configuration is taken over
+        # wholesale and the operator only has to confirm (or override).
+        channel_entities = self._channel_entity_index()
+        actions_by_key: dict[tuple[str, str], Any] = {}
+        for button in parsed:
+            for action in button.actions:
+                actions_by_key[(button.hardware_id, action.slot)] = action
+
         schema_dict: dict[Any, Any] = {}
-        for key, _hardware_id, _slot in self._review_field_keys(parsed, candidates):
-            schema_dict[vol.Optional(key, default="")] = selector.EntitySelector(
+        for key, hardware_id, slot in self._review_field_keys(parsed, candidates):
+            action = actions_by_key.get((hardware_id, slot))
+            default = ""
+            if action is not None and action.target_ip_last_octet is not None:
+                default = channel_entities.get(
+                    (action.target_ip_last_octet, action.target_channel), ""
+                )
+            schema_dict[vol.Optional(key, default=default)] = selector.EntitySelector(
                 selector.EntitySelectorConfig(domain=["light", "switch"])
             )
         return self.async_show_form(
             step_id="onboarding_buttons_review",
             data_schema=vol.Schema(schema_dict),
         )
+
+    def _channel_entity_index(self) -> dict[tuple[int, int], str]:
+        """Map ``(module IP last octet, channel)`` -> HA entity_id.
+
+        Lets the button-review step pre-fill each selector with the entity
+        that already backs the gateway's existing button target. Channels are
+        matched on ``module_ip`` + ``channel`` (not the device id string) so
+        custom device slugs still resolve.
+        """
+        from homeassistant.helpers import entity_registry as er
+
+        registry = er.async_get(self.hass)
+        uid_to_entity = {
+            ent.unique_id: ent.entity_id
+            for ent in registry.entities.values()
+            if ent.platform == DOMAIN
+        }
+        index: dict[tuple[int, int], str] = {}
+        for dev in self._coordinator().devices_snapshot():
+            module_ip = str(dev.get("module_ip") or "")
+            channel = dev.get("channel")
+            dev_id = dev.get("id")
+            if channel is None or not dev_id or "." not in module_ip:
+                continue
+            try:
+                last_octet = int(module_ip.rsplit(".", 1)[-1])
+            except ValueError:
+                continue
+            entity_id = uid_to_entity.get(dev_id)
+            if entity_id:
+                index[(last_octet, int(channel))] = entity_id
+        return index
 
     def _review_field_keys(
         self, parsed: list[Any], candidates: list[tuple[str, str]]

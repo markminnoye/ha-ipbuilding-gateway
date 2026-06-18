@@ -71,6 +71,10 @@
         "title": "Doelen kiezen voor knoppen",
         "description": "Kies een licht of schakelaar voor elke geconfigureerde knop. Leeg laten slaat die actie over. De wizard maakt per slot één automatisering, standaard uit."
       }
+    },
+    "progress": {
+      "discovery": "De fieldbus wordt gescand op modules — dit kan tot ±10 seconden duren. Even geduld…",
+      "modules_refresh": "De knopconfiguratie wordt ingelezen uit de inputmodule(s)…"
     }
   },
   "device_automation": {

@@ -71,6 +71,10 @@
         "title": "Choose targets for buttons",
         "description": "Pick a light or switch for each configured button. Leaving a row empty skips that action. The wizard creates one automation per slot, off by default."
       }
+    },
+    "progress": {
+      "discovery": "Scanning the field bus for modules — this can take up to ~10 seconds. Please wait…",
+      "modules_refresh": "Reading the button configuration from the input module(s)…"
     }
   },
   "device_automation": {
