@@ -44,6 +44,17 @@ log = logging.getLogger(__name__)
 
 ADDON_SLUG = "ipbuilding_gateway"
 
+
+def _is_ipbuilding_gateway_addon(slug: str) -> bool:
+    """Return True for an IPBuilding Gateway add-on slug, including custom-repo slugs.
+
+    Custom add-on repositories prefix the slug with a short hash (e.g.
+    ``3059e002_ipbuilding_gateway``); we accept any slug that ends with
+    ``ADDON_SLUG`` so Supervisor discovery works whether the add-on is
+    installed from the official store or from a custom repository.
+    """
+    return slug.endswith(ADDON_SLUG)
+
 # Voluptuous schema for the manual fallback form.
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -139,7 +150,7 @@ class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
         entry is created only after the operator explicitly clicks
         *Toevoegen* in the **Discovered** UI.
         """
-        if discovery_info.slug != ADDON_SLUG:
+        if not _is_ipbuilding_gateway_addon(discovery_info.slug):
             return self.async_abort(reason="not_ipbuilding_gateway_addon")
 
         host = discovery_info.config.get("host")

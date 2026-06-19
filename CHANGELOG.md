@@ -25,6 +25,11 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-06-19
+
+### Fixed
+- **Supervisor discovery accepteert nu custom-repo slugs.** `async_step_hassio` in `config_flow.py` gebruikt een suffix-match (`*ipbuilding_gateway`) in plaats van een strikte gelijkheid. Hierdoor verschijnt de IPBuilding Gateway Companion in **Instellingen → Apparaten & diensten → Ontdekt** ook wanneer de add-on via een custom repository is geïnstalleerd (slug zoals `3059e002_ipbuilding_gateway`). De vaste store-slug `ipbuilding_gateway` blijft uiteraard ook werken.
+
 ## [1.2.0] - 2026-06-19
 
 ### Breaking
