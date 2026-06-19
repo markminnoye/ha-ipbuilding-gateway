@@ -1,5 +1,6 @@
 {
   "config": {
+    "flow_title": "IPBuilding Gateway ({name})",
     "step": {
       "user": {
         "title": "IPBuilding Gateway",
@@ -9,13 +10,12 @@
           "port": "Poort"
         }
       },
-      "hassio_confirm": {
-        "title": "IPBuilding Gateway add-on gevonden",
-        "description": "De {addon} add-on draait en is bereikbaar. Toevoegen aan Home Assistant?"
-      },
-      "discovery_confirm": {
-        "title": "IPBuilding Gateway ontdekt",
-        "description": "Home Assistant heeft een IPBuilding Gateway gevonden op {url}. Toevoegen?"
+      "confirm": {
+        "title": "IPBuilding Gateway gevonden",
+        "description": "De {addon} gateway v{version} is bereikbaar op {url}. Geef deze gateway een herkenbare naam, of laat de standaard staan.",
+        "data": {
+          "name": "Naam"
+        }
       }
     },
     "error": {
@@ -26,7 +26,6 @@
       "already_configured": "Deze gateway is al geconfigureerd.",
       "cannot_connect": "Kan de gateway niet bereiken.",
       "invalid_discovery_info": "Het discovery-payload was onvolledig of ongeldig.",
-      "already_discovered_addon": "Deze gateway draait als Home Assistant add-on en is al ontdekt via Supervisor.",
       "not_ipbuilding_gateway_addon": "Deze Supervisor add-on is niet de IPBuilding Gateway."
     }
   },

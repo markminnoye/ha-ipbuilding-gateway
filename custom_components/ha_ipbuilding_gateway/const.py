@@ -55,7 +55,9 @@ ZEROCONF_SERVICE_TYPE = "_ipbgw._tcp.local."
 
 #: Discovery TXT schema version. Bump when the gateway changes the wire
 #: format in a way the companion needs to react to.
-DISCOVERY_SCHEMA_VERSION = 1
+#: v1: instance_id, version, base_url, homeassistant_addon, schema_version
+#: v2: + sw, mac, host, port (Shelly-style; explicit host/port + sw alias)
+DISCOVERY_SCHEMA_VERSION = 2
 
 #: TXT property names.
 DISCOVERY_PROP_INSTANCE_ID = "instance_id"
@@ -63,6 +65,10 @@ DISCOVERY_PROP_BASE_URL = "base_url"
 DISCOVERY_PROP_ADDON = "homeassistant_addon"
 DISCOVERY_PROP_SCHEMA_VERSION = "schema_version"
 DISCOVERY_PROP_VERSION = "version"
+DISCOVERY_PROP_SW = "sw"
+DISCOVERY_PROP_HOST = "host"
+DISCOVERY_PROP_PORT = "port"
+DISCOVERY_PROP_MAC = "mac"
 
 # ---------------------------------------------------------------------------
 # Room→area mapping (options flow "Ruimtes koppelen")

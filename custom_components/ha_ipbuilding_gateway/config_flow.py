@@ -158,47 +158,22 @@ class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
         if not host:
             return self.async_abort(reason="invalid_discovery_info")
 
-        await self.async_set_unique_id(discovery_info.uuid)
+        instance_id = discovery_info.config.get("instance_id") or discovery_info.uuid
+        await self.async_set_unique_id(instance_id)
         self._abort_if_unique_id_configured(updates={CONF_HOST: host, CONF_PORT: port})
 
         self._discovery_info = GatewayDiscoveryInfo(
             host=host,
             port=int(port),
-            instance_id=None,
-            base_url=None,
+            instance_id=instance_id,
+            base_url=f"http://{host}:{port}",
             is_addon=True,
             version=None,
-            schema_version=0,
+            sw_version=None,
+            mac=None,
+            schema_version=DISCOVERY_SCHEMA_VERSION,
         )
-        return await self.async_step_hassio_confirm()
-
-    async def async_step_hassio_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Confirm the add-on discovery."""
-        assert self._discovery_info is not None
-        info = self._discovery_info
-
-        if user_input is not None:
-            valid, error, _ = await _validate_gateway(info.host, info.port)
-            if not valid:
-                return self.async_abort(reason="cannot_connect")
-
-            return self.async_create_entry(
-                title="IPBuilding Gateway (add-on)",
-                data={
-                    CONF_HOST: info.host,
-                    CONF_PORT: int(info.port),
-                },
-            )
-
-        return self.async_show_form(
-            step_id="hassio_confirm",
-            description_placeholders={
-                "url": f"http://{info.host}:{info.port}",
-                "version": "onbekend",
-            },
-        )
+        return await self.async_step_confirm()
 
     # ------------------------------------------------------------------
     # Zeroconf discovery
@@ -209,10 +184,10 @@ class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle a Zeroconf discovery broadcast from the gateway.
 
-        The TXT record carries the same fields as the HassIO payload so
-        the same parsing path works. When the gateway identifies itself
-        as a Supervisor add-on, we abort — that case is handled by
-        ``async_step_hassio`` and we don't want a duplicate entry.
+        mDNS is the primary discovery channel; we no longer abort when the
+        gateway identifies itself as a Supervisor add-on (was a duplicate
+        guard when the HassIO flow was the only path). Both standalone and
+        add-on installs use the same ``async_step_confirm`` form.
         """
         log.info(
             "Zeroconf discovery received: type=%s name=%s srv_host=%s srv_port=%s properties=%s",
@@ -236,18 +211,10 @@ class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="invalid_discovery_info")
 
         log.info(
-            "Parsed zeroconf: host=%s port=%d is_addon=%s schema=%d",
-            parsed.host, parsed.port, parsed.is_addon, parsed.schema_version,
+            "Parsed zeroconf: host=%s port=%d is_addon=%s schema=%d instance_id=%s",
+            parsed.host, parsed.port, parsed.is_addon,
+            parsed.schema_version, parsed.instance_id,
         )
-
-        # Deduplicate: when the gateway is running as an HA add-on, the
-        # HassIO flow is the authoritative one.
-        if (
-            parsed.schema_version >= DISCOVERY_SCHEMA_VERSION
-            and parsed.is_addon
-        ):
-            log.debug("Ignoring add-on gateway in zeroconf discovery")
-            return self.async_abort(reason="already_discovered_addon")
 
         host = parsed.host or discovery_info.host
         port = parsed.port or discovery_info.port
@@ -273,32 +240,53 @@ class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
             base_url=parsed.base_url,
             is_addon=parsed.is_addon,
             version=parsed.version,
+            sw_version=parsed.sw_version,
+            mac=parsed.mac,
             schema_version=parsed.schema_version,
         )
-        return await self.async_step_discovery_confirm()
+        return await self.async_step_confirm()
 
-    async def async_step_discovery_confirm(
+    async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm a Zeroconf (standalone) discovery."""
+        """Confirm a discovered gateway (Zeroconf or HassIO) and pick a name.
+
+        Used by both discovery paths. The operator can rename the gateway
+        or accept the default (``instance_id[:8]``). The chosen name is
+        embedded in the config-entry title and the flow header.
+        """
         assert self._discovery_info is not None
         info = self._discovery_info
+        default_name = (
+            (info.instance_id or "")[:8] if info.instance_id else ""
+        ) or "gateway"
         url = info.base_url or f"http://{info.host}:{info.port}"
+        version_label = info.sw_version or info.version or "onbekend"
 
         if user_input is not None:
+            name = (user_input.get("name") or "").strip() or default_name
+            valid, error, _ = await _validate_gateway(info.host, info.port)
+            if not valid:
+                return self.async_abort(reason="cannot_connect")
+            self.context["title_placeholders"] = {"name": name}
             return self.async_create_entry(
-                title="IPBuilding Gateway",
+                title=f"IPBuilding Gateway ({name})",
                 data={
                     CONF_HOST: info.host,
                     CONF_PORT: int(info.port),
                 },
             )
 
+        self.context["title_placeholders"] = {"name": default_name}
         return self.async_show_form(
-            step_id="discovery_confirm",
+            step_id="confirm",
+            data_schema=vol.Schema(
+                {vol.Optional("name", default=default_name): str}
+            ),
             description_placeholders={
                 "url": url,
-                "version": info.version or "onbekend",
+                "version": version_label,
+                "addon": "IPBuilding Gateway",
             },
         )
 

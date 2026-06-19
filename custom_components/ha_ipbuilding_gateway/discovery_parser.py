@@ -14,7 +14,9 @@ from .const import (
     DISCOVERY_PROP_ADDON,
     DISCOVERY_PROP_BASE_URL,
     DISCOVERY_PROP_INSTANCE_ID,
+    DISCOVERY_PROP_MAC,
     DISCOVERY_PROP_SCHEMA_VERSION,
+    DISCOVERY_PROP_SW,
     DISCOVERY_PROP_VERSION,
 )
 
@@ -29,6 +31,8 @@ class GatewayDiscoveryInfo:
     base_url: str | None
     is_addon: bool
     version: str | None
+    sw_version: str | None
+    mac: str | None
     schema_version: int
 
 
@@ -79,5 +83,10 @@ def parse_zeroconf_properties(
         base_url=properties.get(DISCOVERY_PROP_BASE_URL),
         is_addon=properties.get(DISCOVERY_PROP_ADDON, "false").lower() == "true",
         version=properties.get(DISCOVERY_PROP_VERSION),
+        sw_version=(
+            properties.get(DISCOVERY_PROP_SW)
+            or properties.get(DISCOVERY_PROP_VERSION)
+        ),
+        mac=properties.get(DISCOVERY_PROP_MAC) or None,
         schema_version=schema_version,
     )

@@ -25,6 +25,27 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-06-19
+
+### Changed
+- **Integration heet nu "IPBuilding Gateway"** in plaats van "IPBuilding Gateway Companion". De `manifest.json` `name` is bijgewerkt; de device-tree in de Companion blijft gateway → module → kanaal.
+
+### Added
+- **Discovery TXT schema v2**: nieuwe TXT-velden `sw` (alias van `version`), `host`, `port` en `mac` worden nu gelezen. `DISCOVERY_SCHEMA_VERSION` is gebumped naar 2.
+- **`mac` en `sw_version` in `GatewayDiscoveryInfo`**. Lege `mac` wordt als `None` doorgegeven (Supervisor add-on heeft geen unieke interface-MAC).
+
+### Changed
+- **mDNS-first discovery** (zoals Shelly). `async_step_zeroconf` werkt nu ook voor Supervisor add-ons — de duplicate-guard `already_discovered_addon` is verwijderd. Beide discovery-paden (zeroconf en HassIO) gebruiken dezelfde `async_step_confirm` step.
+- **Naamgeving bij toevoegen (D3)**: één nieuwe `confirm` step vervangt `hassio_confirm` en `discovery_confirm`. Default naam = eerste 8 tekens van `instance_id` (of `gateway` als fallback), operator kan deze aanpassen. De gekozen naam komt in de config-entry title (`IPBuilding Gateway (<naam>)`) en in de `flow_title` van de Discovered-card.
+- **`async_step_hassio` leest nu `instance_id`** uit de Supervisor `config` payload, zodat de unique_id tussen zeroconf en HassIO discovery aligned is. De fallback is het Supervisor discovery UUID.
+- **Translaties**: nieuwe `flow_title` en `confirm` step in `strings.json`, `translations/nl.json` en `translations/en.json`. De placeholders `{addon}`, `{version}`, `{url}` en `{name}` worden nu in één beschrijvingsblok gebruikt.
+
+### Tests
+- Nieuwe tests: `tests/test_discovery_parser.py` (schema v2 + mac + sw-fallback) en `tests/test_config_flow_confirm.py` (default naam truncatie, `flow_title` template, refactor smoke-tests).
+
+### Vereisten
+- Gateway ≥ **1.0.4** om de nieuwe TXT-velden te gebruiken. Oudere gateways blijven werken dankzij fallback naar `version`/`base_url`.
+
 ## [1.2.1] - 2026-06-19
 
 ### Fixed
