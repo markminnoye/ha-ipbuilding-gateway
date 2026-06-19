@@ -88,9 +88,26 @@ entities instead of deleting registry entries.
 
 ### Areas
 
-The gateway `room` field on a channel is forwarded as `suggested_area`; after
-setup, `_suggest_channel_areas` links to an existing HA area with the same name
-without overwriting manual assignments.
+The gateway `room` field on a channel is forwarded as `suggested_area` so
+Home Assistant's native device-assignment UI offers the matching HA area
+as a preselect option even before any mapping has been saved.
+
+After setup, `_suggest_channel_areas` silently links devices to an
+existing HA area with the same name (without overwriting manual
+assignments). Operators who want to map every gateway room at once use
+the options flow:
+
+**Settings → Devices & services → IPBuilding Gateway → Configure →
+Ruimtes koppelen** (`map_rooms` step). The form shows one
+`AreaSelector` per unique gateway room; an empty field falls back to an
+HA area with the gateway room name (existing or newly created). The
+mapping is stored in `entry.options[CONF_ROOM_MAPPINGS]` and
+re-applied on every reload by `_apply_stored_room_mappings`, picking up
+new devices that did not exist when the mapping was first saved.
+
+> The previous onboarding wizard (config-flow + button import) was
+> removed in v1.2.0. The last release with the wizard is tagged
+> `v1.1.0-with-onboarding-wizard`.
 
 ### Dimmers
 

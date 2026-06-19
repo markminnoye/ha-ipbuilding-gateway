@@ -25,6 +25,29 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-19
+
+### Breaking
+- **Onboarding-wizard verwijderd** uit de koppel-flow. Een verse installatie laat het tandwiel-menu (`Configure`) de plek zijn waar de operator expliciet gateway-ruimtes aan HA-areas koppelt. De `_suggest_channel_areas` stille koppeling (op bestaande areas met dezelfde naam) en de `suggested_area` hint op devices blijven werken.
+- **Button-import verwijderd.** De wizard importeerde IP1100PoE-knop → actie mappings uit `getButtons` naar `automations.yaml`; dit moet nu via de meegeleverde blueprints (`button_standard`, `button_toggle`, `button_dim`, `button_cover`, `dim_button`) of eigen HA-automations.
+- **Pre-change snapshot:** de laatste versie met de volledige wizard is getagged als `v1.1.0-with-onboarding-wizard` op `b80346f` — gebruik `git checkout v1.1.0-with-onboarding-wizard -- <paths>` om de wizard-code terug te halen.
+
+### Added
+- **Room → area mapping als tandwiel-optie.** De options-flow heeft één menu-item *Ruimtes koppelen* (`map_rooms`) dat een `AreaSelector` per gateway-ruimte toont. Een leeg veld valt terug op een HA-area met dezelfde naam (of maakt die aan); de keuze wordt in `entry.options[CONF_ROOM_MAPPINGS]` opgeslagen en door `__init__._apply_stored_room_mappings` opnieuw toegepast bij elke reload.
+
+### Changed
+- `config_flow.py`: alle discovery-paden (`async_step_user`, `async_step_hassio_confirm`, `async_step_discovery_confirm`) maken nu direct `async_create_entry` aan. Geen `_ob_*` state, geen wizard-spinner meer in de koppel-flow.
+- `async_step_hassio_confirm` haalt `host`/`port` nu uit `self._discovery_info` (latente `NameError` in de oude code als de form werd geopend zonder `user_input`).
+- `options_flow.py` herschreven tot één `IPBuildingOptionsFlowHandler(OptionsFlow)` met menu `["map_rooms"]` — geen `OnboardingFlowMixin` meer.
+- `_apply_onboarding_results` hernoemd naar `_apply_stored_room_mappings` en doet alleen nog de room-mapping; button-import is weg.
+- Debug agent-log blocks in `config_flow.async_step_hassio` en `_import_button_automations` verwijderd.
+
+### Removed
+- Wizard-modules: `onboarding_flow.py`, `gateway_rest.py`, `button_automation_builder.py`, `automation_store.py`, `target_resolver.py`, `button_mapping.py`.
+- Constanten: `CONF_ONBOARDING_COMPLETED`, `CONF_ONBOARDING_SKIPPED`, `CONF_IMPORT_BUTTONS`, `CONF_BUTTON_AUTOMATIONS`.
+- i18n: alle `ob_*` / `onboarding_*` steps, `preparing` / `discovery` / `modules_refresh` progress keys, `onboarding_complete` abort.
+- Tests: `test_onboarding_wiring.py`, `test_button_automation_builder.py`, `test_button_mapping.py`, `test_automation_store.py`.
+
 ## [1.1.0] - 2026-06-19
 
 ### Added

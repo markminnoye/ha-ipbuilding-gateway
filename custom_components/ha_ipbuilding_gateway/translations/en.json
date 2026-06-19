@@ -16,21 +16,6 @@
       "discovery_confirm": {
         "title": "IPBuilding Gateway discovered",
         "description": "Home Assistant found an IPBuilding Gateway at {url}. Add it?"
-      },
-      "ob_rooms": {
-        "title": "Map rooms to areas",
-        "description": "Link {room_count} IPBuilding room(s) to Home Assistant areas. Leave empty to create an area with the same name."
-      },
-      "ob_entities": {
-        "title": "New entities",
-        "description": "These devices will be added — {total_count} total ({light_count} lights, {switch_count} switches, {button_count} buttons):\n\n{entities}\n\nContinue to button setup."
-      },
-      "ob_buttons": {
-        "title": "Import button configuration",
-        "description": "Detected {button_count} button(s); {actionable_count} have actions configured, {warning_count} warning(s). Import the input module's existing button mapping as automations?",
-        "data": {
-          "import_buttons": "Import button automations"
-        }
       }
     },
     "error": {
@@ -42,11 +27,7 @@
       "cannot_connect": "Cannot reach the gateway.",
       "invalid_discovery_info": "The discovery payload was incomplete or invalid.",
       "already_discovered_addon": "This gateway is running as a Home Assistant add-on and is already discovered via Supervisor.",
-      "not_ipbuilding_gateway_addon": "This Supervisor add-on is not the IPBuilding Gateway.",
-      "onboarding_complete": "Onboarding complete."
-    },
-    "progress": {
-      "preparing": "Preparing — reading devices and button configuration from the gateway…"
+      "not_ipbuilding_gateway_addon": "This Supervisor add-on is not the IPBuilding Gateway."
     }
   },
   "options": {
@@ -54,45 +35,13 @@
       "init": {
         "title": "IPBuilding Gateway Options",
         "menu_options": {
-          "run_onboarding": "Run setup wizard again"
+          "map_rooms": "Map rooms to areas"
         }
       },
-      "onboarding_intro": {
-        "title": "Set up installation",
-        "description": "We scan the field bus, link rooms to HA areas, and prepare your devices. Button actions will follow in a later update.",
-        "menu_options": {
-          "start": "Start setup",
-          "skip": "Skip for now"
-        }
-      },
-      "onboarding_discovery": {
-        "title": "Field bus scan",
-        "description": "Scan complete. Added: {added}, changed: {changed}, removed: {removed}. Duration: {duration_s} s. Continue to room mapping."
-      },
-      "onboarding_rooms": {
-        "title": "Link rooms to areas",
+      "map_rooms": {
+        "title": "Map rooms to areas",
         "description": "Link {room_count} IPBuilding room(s) to Home Assistant areas. Leave empty to create an area with the same name."
-      },
-      "onboarding_done": {
-        "title": "Setup complete",
-        "description": "Discovery added {added} module(s). {room_count} room(s) linked. {button_count} button(s) imported. You can re-run this wizard from the integration options."
-      },
-      "onboarding_modules_refresh": {
-        "title": "Fetching button configuration",
-        "description": "Fetching getButtons from the IP1100PoE module(s)…"
-      },
-      "onboarding_buttons_overview": {
-        "title": "Button configuration found",
-        "description": "{button_count} physical button(s) found; {actionable_count} with action(s). Warnings: {warning_count}. Continue to choose targets."
-      },
-      "onboarding_buttons_review": {
-        "title": "Choose targets for buttons",
-        "description": "Pick a light or switch for each configured button. Leaving a row empty skips that action. The wizard creates one automation per slot, off by default."
       }
-    },
-    "progress": {
-      "discovery": "Scanning the field bus for modules — this can take 10–30 seconds. Please wait…",
-      "modules_refresh": "Reading the button configuration from the input module(s)…"
     }
   },
   "device_automation": {

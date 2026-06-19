@@ -65,13 +65,7 @@ DISCOVERY_PROP_SCHEMA_VERSION = "schema_version"
 DISCOVERY_PROP_VERSION = "version"
 
 # ---------------------------------------------------------------------------
-# Onboarding wizard
+# Room→area mapping (options flow "Ruimtes koppelen")
 # ---------------------------------------------------------------------------
 
-CONF_ONBOARDING_COMPLETED = "onboarding_completed"
-CONF_ONBOARDING_SKIPPED = "onboarding_skipped"
 CONF_ROOM_MAPPINGS = "room_mappings"
-CONF_BUTTON_AUTOMATIONS = "button_automations"
-# Whether the coupling wizard's "import button automations" choice was on.
-# Read at setup to build automations once channel entities exist.
-CONF_IMPORT_BUTTONS = "import_buttons"

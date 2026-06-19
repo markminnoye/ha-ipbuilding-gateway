@@ -1,72 +1,113 @@
-"""Options flow for ha_ipbuilding_gateway."""
+"""Options flow for ha_ipbuilding_gateway.
+
+Only the room→area mapping step remains: the onboarding wizard was
+removed in v1.2.0, but operators can still explicitly link each gateway
+``room`` to a Home Assistant area from the integration options (the
+tandwiel). Submitting the form calls ``apply_room_mappings`` and stores
+the mapping in ``entry.options[CONF_ROOM_MAPPINGS]``; ``__init__.py``
+reapplies the stored mapping on every setup.
+
+In HA 2026.6+ ``OptionsFlow.config_entry`` is a read-only property
+backed by ``self.hass.config_entries.async_get_known_entry`` — the
+flow manager injects the entry id via ``self.handler`` after the
+constructor returns. Do not define ``__init__(self, config_entry)``
+and do not assign ``self.config_entry``: the property has no setter
+and the assignment raises ``AttributeError`` before the first step
+runs.
+
+Menu options must map to ``async_step_<option>`` methods (the
+frontend sends ``{"next_step_id": "<option>"}`` and the backend
+dispatches via ``getattr(flow, "async_step_<option>")``).
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
+from homeassistant.core import callback
+from homeassistant.helpers import area_registry as ar, selector
 
-from .onboarding_flow import OnboardingFlowMixin
+from .const import CONF_ROOM_MAPPINGS, DOMAIN
+from .room_mapping import apply_room_mappings, collect_unique_rooms
 
 
-class IPBuildingOptionsFlowHandler(OnboardingFlowMixin, OptionsFlow):
-    """Handle options for IPBuilding Gateway HA.
+class IPBuildingOptionsFlowHandler(OptionsFlow):
+    """Handle options for IPBuilding Gateway HA."""
 
-    In HA 2026.6+ ``OptionsFlow.config_entry`` is a read-only property
-    backed by ``self.hass.config_entries.async_get_known_entry`` — the
-    flow manager injects the entry id via ``self.handler`` after the
-    constructor returns. Do not define ``__init__(self, config_entry)``
-    and do not assign ``self.config_entry``: the property has no setter
-    and the assignment raises ``AttributeError`` before the first step
-    runs.
-
-    Menu options must map to ``async_step_<option>`` methods (the
-    frontend sends ``{"next_step_id": "<option>"}`` and the backend
-    dispatches via ``getattr(flow, "async_step_<option>")``). The single
-    ``run_onboarding`` menu entry therefore needs a dedicated step.
-    """
+    @callback
+    def async_get_options_flow(self) -> OptionsFlow:  # pragma: no cover - HA dispatches
+        # Required by older HA; ignored by 2026.6+ which uses the static
+        # ``async_get_options_flow`` on the config flow.
+        return self
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Present the options menu or auto-launch the wizard.
-
-        The post-install bootstrap in ``__init__.async_setup_entry`` sets
-        ``hass.data[DOMAIN][f"{entry.entry_id}_auto_onboard"] = True``
-        and then opens the flow via ``options.async_init(entry.entry_id)``.
-        The first step is therefore ``async_step_init`` with
-        ``user_input is None``; we detect the flag and jump straight to
-        the onboarding intro. A manual *Configure* click (or a second
-        open) sees no flag and falls through to the menu.
-        """
-        from .const import DOMAIN
-
-        auto_flag = self.hass.data.get(DOMAIN, {}).get(
-            f"{self.config_entry.entry_id}_auto_onboard"
-        )
-        if auto_flag:
-            self.hass.data[DOMAIN].pop(
-                f"{self.config_entry.entry_id}_auto_onboard", None
-            )
-            return await self.async_step_run_onboarding()
-
+        """Show the options menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["run_onboarding"],
+            menu_options=["map_rooms"],
         )
 
-    async def async_step_run_onboarding(
+    async def async_step_map_rooms(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Start the onboarding wizard.
+        """Map gateway ``room`` values to Home Assistant areas.
 
-        Dispatched by HA when the operator clicks the ``run_onboarding``
-        menu entry, and reused by the post-install bootstrap in
-        ``async_step_init``. Resets the per-flow caches so a re-run
-        after completion shows a fresh wizard.
+        Pulls the current device snapshot from the running coordinator,
+        renders one ``AreaSelector`` per unique gateway room, then stores
+        the mapping in ``entry.options``. Leaving a field empty falls
+        back to creating/reusing an HA area with the gateway room name.
         """
-        self._onboarding_entry = self.config_entry
-        self._discover_task = None
-        self._modules_refresh_task = None
-        self._discover_result = None
-        return await self.async_step_onboarding_intro()
+        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        await coordinator.async_request_refresh()
+        rooms = collect_unique_rooms(coordinator.devices_snapshot())
+
+        if not rooms:
+            return self.async_create_entry(
+                title="", data=dict(self.config_entry.options)
+            )
+
+        if user_input is not None:
+            areas = ar.async_get(self.hass)
+            mappings: dict[str, str] = {}
+            for room in rooms:
+                area_id = user_input.get(room, "") or ""
+                if not area_id:
+                    existing = areas.async_get_area_by_name(room)
+                    if existing is None:
+                        area = areas.async_create(room)
+                        area_id = area.id
+                    else:
+                        area_id = existing.id
+                mappings[room] = area_id
+
+            apply_room_mappings(
+                self.hass, self.config_entry, coordinator, mappings
+            )
+            new_options = {
+                **dict(self.config_entry.options),
+                CONF_ROOM_MAPPINGS: mappings,
+            }
+            # ``async_create_entry`` *is* the options write — its ``data`` dict
+            # becomes ``entry.options``. Returning ``data={}`` wipes every
+            # stored option (including the mapping we just built).
+            return self.async_create_entry(title="", data=new_options)
+
+        areas_registry = ar.async_get(self.hass)
+        stored = self.config_entry.options.get(CONF_ROOM_MAPPINGS) or {}
+        schema: dict[Any, Any] = {}
+        for room in rooms:
+            default = stored.get(room) or ""
+            if not default:
+                existing = areas_registry.async_get_area_by_name(room)
+                default = existing.id if existing else ""
+            schema[vol.Optional(room, default=default)] = selector.AreaSelector()
+
+        return self.async_show_form(
+            step_id="map_rooms",
+            data_schema=vol.Schema(schema),
+            description_placeholders={"room_count": str(len(rooms))},
+        )

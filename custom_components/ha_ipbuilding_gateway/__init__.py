@@ -15,21 +15,12 @@ from homeassistant.helpers import (
     device_registry as dr,
 )
 
-from .automation_store import async_write_button_automations
 from .blueprints import async_install_packaged_blueprints
-from .button_automation_builder import collect_automations
-from .button_mapping import SLOT_LONG_PRESS, SLOT_PRESS, SLOT_RELEASE, parse_buttons
-from .const import (
-    CONF_BUTTON_AUTOMATIONS,
-    CONF_IMPORT_BUTTONS,
-    CONF_ROOM_MAPPINGS,
-    DOMAIN,
-)
+from .const import CONF_ROOM_MAPPINGS, DOMAIN
 from .coordinator import IPBuildingCoordinator
 from .entity import module_device_model, module_device_name
 from .hub import gateway_device_info
 from .room_mapping import apply_room_mappings
-from .target_resolver import build_channel_entity_index, build_channel_name_index
 
 log = logging.getLogger(__name__)
 
@@ -57,9 +48,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Now that channel entities have been registered, link them to the
     # matching HA area by name when the gateway provided a ``room`` for
     # the channel. Devices without a match still carry ``suggested_area``
-    # from :func:`build_channel_device_info`, so the onboarding "Naam
-    # geven en toewijzen" screen offers the area as a preselect option
-    # even when no matching HA area exists yet.
+    # from :func:`build_channel_device_info`, so Home Assistant's native
+    # device-assignment UI offers the area as a preselect option even
+    # when no matching HA area exists yet. Operators can also map rooms
+    # explicitly via the integration options ("Ruimtes koppelen").
     _suggest_channel_areas(hass, entry, coordinator)
     # Run a one-shot discovery sweep if the gateway has nothing yet. The
     # flag lives on hass.data so a subsequent async_reload (which resets
@@ -78,97 +70,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _bootstrap_devices(hass, entry.entry_id)
         )
         entry.async_on_unload(bootstrap_task.cancel)
-    # Apply the choices the coupling wizard collected (room→area mapping is
-    # idempotent — it never overwrites a user-set area). The wizard now runs
-    # inside the config flow, so there is no auto-launched options flow here.
-    await _apply_onboarding_results(hass, entry, coordinator)
+    # Reapply any room→area mapping the operator saved through the
+    # options flow. Idempotent — ``apply_room_mappings`` never overwrites
+    # a device area the operator assigned manually, and it catches new
+    # devices that did not exist when the mapping was first stored.
+    _apply_stored_room_mappings(hass, entry, coordinator)
     return True
 
 
-async def _apply_onboarding_results(
+def _apply_stored_room_mappings(
     hass: HomeAssistant, entry: ConfigEntry, coordinator: IPBuildingCoordinator
 ) -> None:
-    """Apply the room mapping and (optionally) import button automations.
+    """Apply the operator-saved room mapping from ``entry.options``.
 
-    Runs every setup. ``apply_room_mappings`` only assigns areas to devices
-    that have none, so it is safe to re-run and it also catches button devices
-    that only appeared after a ``getButtons`` refresh. Button automations are
-    built once (when ``CONF_IMPORT_BUTTONS`` is set and they are not stored
-    yet), since that step needs the channel entities created above.
+    Runs on every setup. ``apply_room_mappings`` only assigns areas to
+    devices that have none, so it is safe to re-run on reload.
     """
     mappings = entry.options.get(CONF_ROOM_MAPPINGS) or {}
     if mappings:
         apply_room_mappings(hass, entry, coordinator, dict(mappings))
-
-    if not entry.options.get(CONF_IMPORT_BUTTONS):
-        return
-    if entry.options.get(CONF_BUTTON_AUTOMATIONS):
-        return  # already imported
-    await _import_button_automations(hass, entry, coordinator)
-
-
-async def _import_button_automations(
-    hass: HomeAssistant, entry: ConfigEntry, coordinator: IPBuildingCoordinator
-) -> None:
-    """Build button automations from the input module's existing mapping."""
-    try:
-        parsed = parse_buttons(await coordinator.async_fetch_button_config())
-    except Exception:
-        log.exception("Failed to read button config for import")
-        return
-    if not parsed:
-        return
-
-    snapshot = coordinator.devices_snapshot()
-    channel_index = build_channel_entity_index(hass, snapshot)
-    name_index = build_channel_name_index(snapshot)
-
-    # Resolve every configured slot (press/long/release) to its HA target so
-    # the input module's mapping is taken over wholesale.
-    targets: dict[tuple[str, str], str] = {}
-    target_names: dict[tuple[str, str], str] = {}
-    for button in parsed:
-        for action in button.actions:
-            if action.warning:
-                continue
-            if action.target_ip_last_octet is None or action.target_channel is None:
-                continue
-            key = (action.target_ip_last_octet, action.target_channel)
-            entity_id = channel_index.get(key)
-            if not entity_id:
-                continue
-            targets[(button.hardware_id, action.slot)] = entity_id
-            if key in name_index:
-                target_names[(button.hardware_id, action.slot)] = name_index[key]
-
-    device_registry = dr.async_get(hass)
-    hardware_ids = {p.hardware_id for p in parsed}
-    button_device_ids: dict[str, str] = {}
-    for device in device_registry.devices.values():
-        for domain, identifier in device.identifiers:
-            if domain == DOMAIN and identifier in hardware_ids:
-                button_device_ids[identifier] = device.id
-
-    automations = collect_automations(
-        parsed,
-        button_device_ids=button_device_ids,
-        target_entity_ids=targets,
-        target_names=target_names,
-        include_slots=(SLOT_PRESS, SLOT_LONG_PRESS, SLOT_RELEASE),
-    )
-    if not automations:
-        return
-
-    # Write them as real, editable HA automations and reload.
-    await async_write_button_automations(hass, automations)
-
-    # Record what we generated so a later setup/reload does not re-import.
-    options = dict(entry.options)
-    options[CONF_BUTTON_AUTOMATIONS] = {
-        "targets": {f"{k[0]}|{k[1]}": v for k, v in targets.items()},
-        "automations": automations,
-    }
-    hass.config_entries.async_update_entry(entry, options=options)
 
 
 async def _bootstrap_devices(hass: HomeAssistant, entry_id: str) -> None:
@@ -274,14 +194,13 @@ async def _async_update_listener(
 ) -> None:
     """Handle config entry updates.
 
-    The onboarding wizard (an OptionsFlow) writes entry options/data several
-    times — room mappings, button automations, the completion flag. Reloading
-    the integration mid-wizard tears down ``hass.data[DOMAIN][entry_id]`` under
-    the running flow, so the coordinator lookup raises ``KeyError(entry_id)``
-    and the wizard breaks. Skip the reload while an options flow for this entry
-    is in progress; room areas are written straight to the device registry, so
-    they take effect without a reload. The flow's final options write (after it
-    is no longer in progress) still triggers one clean reload.
+    The options flow writes ``entry.options`` while the flow is still
+    running (the operator moves through the room-mapping form). Reloading
+    the integration mid-flow tears down ``hass.data[DOMAIN][entry_id]``
+    under the running flow and the next lookup raises ``KeyError``. Skip
+    the reload while an options flow for this entry is in progress; the
+    final options write (after the flow closes) still triggers one clean
+    reload.
     """
     if hass.config_entries.options.async_progress_by_handler(entry.entry_id):
         return
