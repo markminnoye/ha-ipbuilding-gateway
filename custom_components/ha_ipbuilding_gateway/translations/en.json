@@ -35,12 +35,12 @@
       "init": {
         "title": "IPBuilding Gateway Options",
         "menu_options": {
-          "map_rooms": "Map rooms to areas"
+          "map_rooms": "Assign IPBuilding groups to areas"
         }
       },
       "map_rooms": {
-        "title": "Map rooms to areas",
-        "description": "Link {room_count} IPBuilding room(s) to Home Assistant areas. Leave empty to create an area with the same name."
+        "title": "Assign IPBuilding groups to Home Assistant areas",
+        "description": "Assign {room_count} group(s) from your IPBuilding installation to Home Assistant areas. Leave empty to create an area with the same name."
       }
     }
   },

@@ -66,6 +66,24 @@ def test_build_room_device_index_groups_by_room() -> None:
     assert "Badkamer" in index
 
 
+def test_should_offer_room_mapping_when_rooms_present_and_not_yet_offered() -> None:
+    assert room_mapping.should_offer_room_mapping({}, ["Keuken"]) is True
+
+
+def test_should_not_offer_room_mapping_when_no_rooms() -> None:
+    assert room_mapping.should_offer_room_mapping({}, []) is False
+
+
+def test_should_not_offer_room_mapping_when_already_mapped() -> None:
+    options = {const_mod.CONF_ROOM_MAPPINGS: {"Keuken": "area_keuken"}}
+    assert room_mapping.should_offer_room_mapping(options, ["Keuken"]) is False
+
+
+def test_should_not_offer_room_mapping_when_already_offered() -> None:
+    options = {const_mod.CONF_ROOM_MAPPING_OFFERED: True}
+    assert room_mapping.should_offer_room_mapping(options, ["Keuken"]) is False
+
+
 def test_buttons_are_collected_and_grouped_with_channels() -> None:
     """Buttons (semantic_type 'button') sync to areas just like channels.
 

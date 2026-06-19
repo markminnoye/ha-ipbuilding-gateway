@@ -45,7 +45,16 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show the options menu."""
+        """Show the options menu.
+
+        Skips straight to ``async_step_map_rooms`` when ``__init__.py``'s
+        ``_maybe_offer_room_mapping`` auto-launched this flow right after
+        the gateway's rooms first became known — the operator should land
+        on the room-mapping form, not the (single-option) menu.
+        """
+        flag_key = f"{self.config_entry.entry_id}_auto_room_mapping"
+        if self.hass.data.get(DOMAIN, {}).pop(flag_key, False):
+            return await self.async_step_map_rooms()
         return self.async_show_menu(
             step_id="init",
             menu_options=["map_rooms"],

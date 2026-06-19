@@ -35,12 +35,12 @@
       "init": {
         "title": "IPBuilding Gateway Opties",
         "menu_options": {
-          "map_rooms": "Ruimtes koppelen aan areas"
+          "map_rooms": "IPBuilding-groepen aan HA-ruimtes toewijzen"
         }
       },
       "map_rooms": {
-        "title": "Ruimtes koppelen aan areas",
-        "description": "Koppel {room_count} IPBuilding-ruimte(n) aan Home Assistant areas. Laat leeg om een area met dezelfde naam aan te maken."
+        "title": "IPBuilding-groepen aan Home Assistant-ruimtes toewijzen",
+        "description": "Wijs {room_count} groep(en) uit je IPBuilding-installatie toe aan ruimtes in Home Assistant. Laat leeg om een ruimte met dezelfde naam aan te maken."
       }
     }
   },

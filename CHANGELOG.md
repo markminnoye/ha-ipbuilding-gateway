@@ -34,6 +34,7 @@ anders meldt.
 
 ### Added
 - **Room → area mapping als tandwiel-optie.** De options-flow heeft één menu-item *Ruimtes koppelen* (`map_rooms`) dat een `AreaSelector` per gateway-ruimte toont. Een leeg veld valt terug op een HA-area met dezelfde naam (of maakt die aan); de keuze wordt in `entry.options[CONF_ROOM_MAPPINGS]` opgeslagen en door `__init__._apply_stored_room_mappings` opnieuw toegepast bij elke reload.
+- **Ruimtes koppelen wordt automatisch geopend** meteen na het toevoegen van een gateway. `_maybe_offer_room_mapping` start de options-flow zelf (`hass.config_entries.options.async_init`) zodra er gateway-ruimtes gekend zijn en er nog geen mapping is opgeslagen; `async_step_init` slaat dan het menu over en toont meteen *Ruimtes koppelen*. Een nieuwe `entry.options[CONF_ROOM_MAPPING_OFFERED]`-vlag zorgt dat dit maar één keer per gateway gebeurt, ook als de operator het scherm sluit zonder op te slaan.
 
 ### Changed
 - `config_flow.py`: alle discovery-paden (`async_step_user`, `async_step_hassio_confirm`, `async_step_discovery_confirm`) maken nu direct `async_create_entry` aan. Geen `_ob_*` state, geen wizard-spinner meer in de koppel-flow.

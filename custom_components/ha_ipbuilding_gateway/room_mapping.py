@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers import area_registry as ar, device_registry as dr
 
-from .const import DOMAIN
+from .const import CONF_ROOM_MAPPING_OFFERED, CONF_ROOM_MAPPINGS, DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -23,6 +23,23 @@ def collect_unique_rooms(devices: list[dict[str, Any]]) -> list[str]:
         if room and str(room).strip():
             rooms.add(str(room).strip())
     return sorted(rooms)
+
+
+def should_offer_room_mapping(options: dict[str, Any], rooms: list[str]) -> bool:
+    """Decide whether to auto-launch the room-mapping options flow.
+
+    Only when there is at least one gateway room to map, the operator
+    has never saved a mapping, and we have never auto-offered it before
+    — so the prompt fires once, right after a gateway's rooms first
+    become known, and never nags again afterwards.
+    """
+    if not rooms:
+        return False
+    if options.get(CONF_ROOM_MAPPINGS):
+        return False
+    if options.get(CONF_ROOM_MAPPING_OFFERED):
+        return False
+    return True
 
 
 def build_room_device_index(devices: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:

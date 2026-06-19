@@ -69,3 +69,7 @@ DISCOVERY_PROP_VERSION = "version"
 # ---------------------------------------------------------------------------
 
 CONF_ROOM_MAPPINGS = "room_mappings"
+#: Set once the room-mapping options flow has been auto-launched for an
+#: entry (right after its rooms first appear), so it is never offered
+#: again even if the operator closes it without submitting.
+CONF_ROOM_MAPPING_OFFERED = "room_mapping_offered"

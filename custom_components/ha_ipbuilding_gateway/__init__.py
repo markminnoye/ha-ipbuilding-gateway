@@ -16,11 +16,11 @@ from homeassistant.helpers import (
 )
 
 from .blueprints import async_install_packaged_blueprints
-from .const import CONF_ROOM_MAPPINGS, DOMAIN
+from .const import CONF_ROOM_MAPPING_OFFERED, CONF_ROOM_MAPPINGS, DOMAIN
 from .coordinator import IPBuildingCoordinator
 from .entity import module_device_model, module_device_name
 from .hub import gateway_device_info
-from .room_mapping import apply_room_mappings
+from .room_mapping import apply_room_mappings, collect_unique_rooms, should_offer_room_mapping
 
 log = logging.getLogger(__name__)
 
@@ -75,7 +75,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # a device area the operator assigned manually, and it catches new
     # devices that did not exist when the mapping was first stored.
     _apply_stored_room_mappings(hass, entry, coordinator)
+    # Auto-open the room-mapping options flow once the gateway's rooms are
+    # known, so the operator does not have to find the tandwiel themselves
+    # after adding a gateway. No-op once mapped (or once already offered).
+    await _maybe_offer_room_mapping(hass, entry, coordinator)
     return True
+
+
+async def _maybe_offer_room_mapping(
+    hass: HomeAssistant, entry: ConfigEntry, coordinator: IPBuildingCoordinator
+) -> None:
+    """Auto-launch the options flow's room-mapping step exactly once.
+
+    Sets a ``hass.data`` flag that ``IPBuildingOptionsFlowHandler.async_step_init``
+    checks to skip straight to ``async_step_map_rooms`` instead of showing
+    the menu. ``CONF_ROOM_MAPPING_OFFERED`` is persisted to ``entry.options``
+    after the flow is started (so ``async_progress_by_handler`` already
+    sees it as in-progress and ``_async_update_listener`` skips the reload
+    that write would otherwise trigger).
+    """
+    rooms = collect_unique_rooms(coordinator.devices_snapshot())
+    if not should_offer_room_mapping(entry.options, rooms):
+        return
+    hass.data[DOMAIN][f"{entry.entry_id}_auto_room_mapping"] = True
+    await hass.config_entries.options.async_init(entry.entry_id)
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, CONF_ROOM_MAPPING_OFFERED: True}
+    )
 
 
 def _apply_stored_room_mappings(
