@@ -1,8 +1,8 @@
-# ipbuilding_blueprint_version: 5
+# ipbuilding_blueprint_version: 6
 blueprint:
   name: "[Voorbeeld] IPBuilding wandknop — gordijn"
   description: >
-    **Blueprint-versie: 5.** **Dit is een voorbeeld-blueprint** — niet productie-klaar. De
+    **Blueprint-versie: 6.** **Dit is een voorbeeld-blueprint** — niet productie-klaar. De
     Companion-ontwikkelaars hebben geen `cover` hardware om dit te
     testen; de blueprint is naar beste weten opgebouwd uit de
     IPBuilding-specificatie en de Home Assistant `cover`-services,
@@ -127,11 +127,11 @@ trigger:
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
-    to: "press"
+    to: "single_press"
     not_from:
       - unavailable
       - unknown
-    id: press
+    id: single_press
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
@@ -154,7 +154,7 @@ action:
       # Short press — optional.
       - conditions:
           - condition: trigger
-            id: press
+            id: single_press
           - condition: template
             value_template: "{{ press_action != 'none' }}"
         sequence:

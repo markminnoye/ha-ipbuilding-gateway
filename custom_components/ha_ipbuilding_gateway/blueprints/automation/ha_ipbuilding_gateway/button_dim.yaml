@@ -1,8 +1,8 @@
-# ipbuilding_blueprint_version: 5
+# ipbuilding_blueprint_version: 6
 blueprint:
   name: IPBuilding wandknop — dimmen
   description: >
-    **Blueprint-versie: 5.** Hue-style continuous dimming for an
+    **Blueprint-versie: 6.** Hue-style continuous dimming for an
     IPBuilding IP1100PoE wall switch.
     Use this for a wall button that should:
       - toggle the target light on a short press;
@@ -10,10 +10,12 @@ blueprint:
       - flip the dim direction on release (after a long press) and on
         hitting 1 % / 100 %.
 
-    The companion exposes `press`, `long_press`, and `release` events on
-    the event entity of each physical button — this blueprint hooks into
-    those via state triggers, so it does not need any extra helper wiring
-    beyond a single `input_boolean` direction tracker.
+    The companion exposes `single_press`, `long_press`, and `release`
+    events on the event entity of each physical button — v6 hooks into
+    `single_press` directly so the toggle fires the moment the operator
+    releases a short tap, with no 600 ms wait. The gateway classifies
+    the press itself: a short tap emits `single_press` on release, a
+    hold emits `long_press` at the threshold.
 
     Behaviour:
       - Short press → toggle the light (no direction flip).
@@ -110,11 +112,11 @@ trigger:
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
-    to: "press"
+    to: "single_press"
     not_from:
       - unavailable
       - unknown
-    id: press
+    id: single_press
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
@@ -149,48 +151,21 @@ trigger:
 
 action:
   - choose:
-      # Short press → wait briefly. If release fires first we toggle the
-      # light; if long_press fires first the hold branch takes over; if
-      # the timeout fires without any follow-up event we still toggle —
-      # the operator pressed the button, so something should happen
-      # (Hue-style fallback). The `continue_on_timeout: true` is
-      # essential: without it HA aborts the automation on timeout and
-      # the toggle never runs.
+    # Short press → toggle the light. The gateway emits `single_press`
+    # on release of a short tap, so this fires immediately when the
+    # operator releases — no 600 ms timing disambiguation needed (v6
+    # contract: the gateway classifies the press, the blueprint just
+    # maps events to actions). The fallback timeout that v5 used to
+    # guard against a missing release event is gone: a long press fires
+    # `long_press` instead of `single_press`, so the two are mutually
+    # exclusive.
       - conditions:
           - condition: trigger
-            id: press
+            id: single_press
         sequence:
-          - wait_for_trigger:
-              - platform: state
-                entity_id: !input button_entity
-                attribute: event_type
-                to: "long_press"
-              - platform: state
-                entity_id: !input button_entity
-                attribute: event_type
-                to: "release"
-            timeout:
-              milliseconds: 600
-            continue_on_timeout: true
-          - choose:
-              - conditions:
-                  # Real release event within timeout — guaranteed short press.
-                  - condition: template
-                    value_template: "{{ wait.trigger is not none and wait.trigger.to_state.attributes.event_type == 'release' }}"
-                sequence:
-                  - action: light.toggle
-                    target:
-                      entity_id: !input target_light
-              # Timeout (wait.trigger is none) — still treat as a short press
-              # and toggle. Matches the same default behaviour as a normal
-              # short press so the operator gets feedback either way.
-              - conditions:
-                  - condition: template
-                    value_template: "{{ wait.trigger is none }}"
-                sequence:
-                  - action: light.toggle
-                    target:
-                      entity_id: !input target_light
+          - action: light.toggle
+            target:
+              entity_id: !input target_light
 
       # Hold → repeat the dim loop while the trigger id is "hold".
       - conditions:

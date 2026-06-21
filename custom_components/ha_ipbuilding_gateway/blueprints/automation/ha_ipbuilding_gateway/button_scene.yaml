@@ -1,11 +1,15 @@
-# ipbuilding_blueprint_version: 3
+# ipbuilding_blueprint_version: 4
 blueprint:
   name: IPBuilding wandknop — scene
   description: >
-    **Blueprint-versie: 3.** Scene activation for an IPBuilding
+    **Blueprint-versie: 4.** Scene activation for an IPBuilding
     IP1100PoE wall switch. Use this
     when a short press (and optionally a long press) should activate
     Home Assistant scenes — no lights or switches to toggle.
+
+    The gateway classifies the press itself: a short tap emits
+    `single_press` on release, a hold emits `long_press` at the
+    threshold. v4 hooks into both events directly — no timing logic.
 
     For mixed targets (lamp + scene, area-wide on/off) use
     `button_standard`.
@@ -56,11 +60,11 @@ trigger:
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
-    to: "press"
+    to: "single_press"
     not_from:
       - unavailable
       - unknown
-    id: press
+    id: single_press
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
@@ -74,7 +78,7 @@ action:
   - choose:
       - conditions:
           - condition: trigger
-            id: press
+            id: single_press
         sequence:
           - action: scene.turn_on
             target:
