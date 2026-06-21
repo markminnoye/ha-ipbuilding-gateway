@@ -72,6 +72,7 @@
         "name": "Knop {hardware_id}",
         "state": {
           "press": "Ingedrukt",
+          "single_press": "Kort ingedrukt",
           "long_press": "Lang ingedrukt",
           "release": "Losgelaten"
         }

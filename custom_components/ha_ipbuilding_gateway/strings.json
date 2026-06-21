@@ -72,6 +72,7 @@
         "name": "Button {hardware_id}",
         "state": {
           "press": "Pressed",
+          "single_press": "Single pressed",
           "long_press": "Long pressed",
           "release": "Released"
         }
