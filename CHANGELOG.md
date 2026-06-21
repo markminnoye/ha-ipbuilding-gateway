@@ -28,10 +28,13 @@ anders meldt.
 ## [1.3.0]
 
 ### Added
-- **`single_press` button event + `single_pressed` device trigger.** De gateway classificeert een korte druk nu zelf: `single_press` bij loslaten onder de drempel, `long_press` bij overschrijding van de drempel. De companion voegt `single_press` toe aan de EventEntity event-types, vuurt `ha_ipbuilding_gateway.button_single_pressed` op de HA bus, en tagt elk event met zijn HA/Matter-standaard naam (`press_start` / `press_end` / `long_press_start` / `long_press_end`) in `event_data`. De automation-editor toont een nieuwe "Single pressed" device trigger. Vereist gateway ≥ 1.1.0 om de nieuwe `single_press`-events te ontvangen.
+- **`single_press` button event + `single_pressed` device trigger.** De gateway classificeert een korte druk nu zelf: `single_press` bij loslaten onder de drempel, `long_press` bij overschrijding van de drempel. De companion voegt `single_press` toe aan de EventEntity event-types, vuurt `ha_ipbuilding_gateway.button_single_pressed` op de HA bus, en tagt de gesture-events met hun HA/Matter-standaard naam in `event_data` (`press` → `press_start`, `single_press` → `press_end`, `long_press` → `long_press_start`). De raw `release` blijft bewust ongetagd (volgt zowel korte als lange druk, dus geen eenduidig standaard-equivalent). De automation-editor toont een nieuwe "Single pressed" device trigger. Vereist gateway ≥ 1.1.0 om de nieuwe `single_press`-events te ontvangen.
 
 ### Changed
 - **`button_standard`-blueprint (v7)** triggeren nu direct op `single_press` en `long_press` — geen `wait_for_trigger` met 600 ms timeout meer. De gateway doet de press-vs-long-press-disambiguatie, dus de race tussen 600 ms timeout en de 1,5 s standaard hold-drempel is weg. Vereist gateway ≥ 1.1.0.
+
+### Breaking
+- **`button_standard` v7 verwijdert oude inputs** (`automation_name`, `automation_area`, `press_target`, `long_press_target` en de select-acties) ten gunste van volledige action-selectors. Bestaande automation-**instanties** op een eerdere `button_standard`-versie blijven verwijzen naar niet-bestaande inputs en moeten **opnieuw aangemaakt** worden na de update.
 
 ### Fixed
 - **Blueprint triggers vuurden niet op event entities.** Alle

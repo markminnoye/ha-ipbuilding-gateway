@@ -29,5 +29,10 @@ def test_single_press_maps_to_bus_event():
 def test_standard_event_type_mapping():
     assert ev._STANDARD_EVENT_TYPE["single_press"] == "press_end"
     assert ev._STANDARD_EVENT_TYPE["long_press"] == "long_press_start"
-    assert ev._STANDARD_EVENT_TYPE["release"] == "long_press_end"
     assert ev._STANDARD_EVENT_TYPE["press"] == "press_start"
+
+
+def test_release_has_no_standard_event_type():
+    # release is a raw edge that follows both short and long presses, so it
+    # has no single standard equivalent and must stay unmapped.
+    assert "release" not in ev._STANDARD_EVENT_TYPE

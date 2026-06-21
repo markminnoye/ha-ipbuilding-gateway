@@ -57,11 +57,16 @@ _ACTION_TO_BUS_EVENT: dict[str, str] = {
 # event types (architecture discussion #1377). Exposed in event_data as
 # ``standard_event_type`` so automations can be written against the standard
 # without the gateway needing to know about Matter.
+#
+# ``release`` is intentionally NOT mapped: it is a raw edge that fires after
+# both short and long presses, so it has no single standard equivalent
+# (short → press_end, long → long_press_end). Tagging it as one would
+# mislabel the other case. Consumers wanting the standard semantics use the
+# gesture events (single_press → press_end, long_press → long_press_start).
 _STANDARD_EVENT_TYPE: dict[str, str] = {
     "press": "press_start",
     "single_press": "press_end",
     "long_press": "long_press_start",
-    "release": "long_press_end",
 }
 
 
