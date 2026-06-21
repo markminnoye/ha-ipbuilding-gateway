@@ -131,19 +131,43 @@ EventDeviceClass.BUTTON`. Three bus events are fired with the same
 The companion also exposes three device triggers in the automation
 editor UI: **Button pressed**, **Long pressed**, **Released**.
 
-### Dim-button blueprint
+### Button blueprints
 
-A packaged blueprint `IPBuilding button — toggle + dim during hold` is
-shipped with the companion at
-`blueprints/automation/ha_ipbuilding_gateway/dim_button.yaml`. It
-handles Hue-style continuous dimming during hold with automatic
-direction-flip on release and on hitting 1 % / 100 %.
+Packaged automation blueprints for IP1100PoE wall buttons live at
+`blueprints/automation/ha_ipbuilding_gateway/`. On integration setup they
+are copied (or upgraded) into your HA config folder
+`config/blueprints/automation/ha_ipbuilding_gateway/` so they appear in
+**Settings → Automations & scenes → Blueprints**.
 
-From **Settings → Automations → Blueprints** (or **Create automation → Use
-blueprint**) the blueprint appears as `ha_ipbuilding_gateway/dim_button.yaml`
-after the integration has loaded once; missing files are copied automatically
-from the companion package into your `config/blueprints/automation/` folder.
-Pick it, fill in the input fields, and you have a working single-button dimmer.
+| Blueprint | Purpose |
+|-----------|---------|
+| `button_standard` | Short + long press → full action-editor (any service, any target, any data) |
+| `button_scene` | Short press → scene; optional long press → scene |
+| `button_dim` | Toggle + dim while held (needs `input_boolean` helper) |
+| `button_cover` | Hold to move cover, release to stop (unvalidated example) |
+
+> **Belangrijk (2026-06-20):** de state-triggers in alle blueprints
+> gebruiken `attribute: event_type`. Event entities slaan de
+> press/long_press/release waarde op in het attribuut (niet in de
+> state, dat is een timestamp). Een kale `to: "press"` trigger vuurt
+> nooit; dat is de oorzaak van "Hal R → bureau toggle werkt niet"
+> (zie CHANGELOG v0.x).
+
+#### `button_dim` v3
+
+- Short press → toggle (no direction flip).
+- Long press → dim loop. First hold on an off lamp turns it on at 1 % and
+  continues dimming.
+- Release after a long press → flip the dim direction for the next hold.
+- Release after a short press → no flip.
+- Hitting 1 % / 100 % during a dim → flip the direction automatically.
+
+Add `# user_modified: true` at the top of a blueprint file in your HA
+config folder to opt out of automatic upgrades on companion updates.
+
+Event semantics: `press`, `long_press` (after ~1.5 s hold), `release`
+(always fires, including after short presses). Blueprints use state
+triggers on the `event.<hardware_id>` entity.
 
 ## Development
 

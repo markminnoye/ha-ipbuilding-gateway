@@ -152,39 +152,82 @@ button is in
 
 ## Button automations
 
-The companion does **not** ship automation blueprints to the operator's
-HA Blueprint picker. The packaged blueprint files remain in this repository
-for reference and for the source-only tests:
+The companion ships automation blueprints for IP1100PoE wall buttons. On
+integration setup they are copied (or upgraded) into your HA config folder
+under `config/blueprints/automation/ha_ipbuilding_gateway/`, so they show up
+in **Settings → Automations & scenes → Blueprints**.
+
+Packaged YAML files live at
 [`blueprints/automation/ha_ipbuilding_gateway/`](custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/).
 
-To wire an IP1100PoE physical button to a lamp, dimmer, cover, or
-scene, use one of the following paths.
+| Use case | Blueprint |
+|----------|-----------|
+| Short + long press → any service, any target, any data | `button_standard` |
+| Short press → scene (optional long → scene) | `button_scene` |
+| Toggle + dim while held | `button_dim` |
+| Hold to move cover, release to stop (example) | `button_cover` |
 
-### 1. Community blueprint (recommended for most users)
+`button_dim` needs an `input_boolean` helper for dim direction. Create one
+via **Settings → Devices & services → Helpers → Toggle** before configuring
+the blueprint.
 
-The HA community maintains a number of blueprints that work with the
-event entities this companion creates (`event.<hardware_id>` with
-`press`, `long_press`, and `release` event types):
+### `button_dim` v3 behaviour
+
+- **Short press** → toggle the light (no direction flip).
+- **Long press** → dim loop. If the light was off, the first hold turns it
+  on at 1 % and continues dimming in the configured direction.
+- **Release after a long press** → flip the dim direction for the next hold.
+- **Release after a short press** → no flip.
+- **Hitting 1 % / 100 %** during a dim → flip the direction automatically.
+
+### 1. Auto-install (default)
+
+1. Enable the button event entity first:
+   `Settings → Devices & entities → Entities → filter "event" → enable`.
+2. Reload the IPBuilding Gateway integration (companion auto-syncs the
+   blueprints into `config/blueprints/automation/ha_ipbuilding_gateway/`).
+3. **Settings → Automations & scenes → Blueprints** → pick e.g.
+   `IPBuilding wandknop — dimmen`.
+4. **Create automation → Use blueprint**, fill in the button
+   (`event.<hardware_id>`), the target lamp, and the dim helper.
+
+### 2. Import via URL (alternative)
+
+If you prefer not to auto-install, paste a GitHub URL into
+**Settings → Automations & scenes → Blueprints → Import blueprint**:
+
+| Blueprint | Import URL |
+|-----------|------------|
+| `button_standard` | [import](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2Fha-ipbuilding-gateway%2Fblob%2Fmain%2Fcustom_components%2Fha_ipbuilding_gateway%2Fblueprints%2Fautomation%2Fha_ipbuilding_gateway%2Fbutton_standard.yaml) |
+| `button_scene` | [import](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2Fha-ipbuilding-gateway%2Fblob%2Fmain%2Fcustom_components%2Fha_ipbuilding_gateway%2Fblueprints%2Fautomation%2Fha_ipbuilding_gateway%2Fbutton_scene.yaml) |
+| `button_dim` | [import](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2Fha-ipbuilding-gateway%2Fblob%2Fmain%2Fcustom_components%2Fha_ipbuilding_gateway%2Fblueprints%2Fautomation%2Fha_ipbuilding_gateway%2Fbutton_dim.yaml) |
+| `button_cover` | [import](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fmarkminnoye%2Fha-ipbuilding-gateway%2Fblob%2Fmain%2Fcustom_components%2Fha_ipbuilding_gateway%2Fblueprints%2Fautomation%2Fha_ipbuilding_gateway%2Fbutton_cover.yaml) |
+
+On HA 2024.10+, the **Import** links above open the import dialog on your
+instance via My Home Assistant.
+
+### 3. Community blueprint (alternative)
+
+The HA community maintains blueprints that also work with the
+`press` / `long_press` / `release` event entities this companion creates:
 
 - **[Philips Hue Dimmer Switch (Z2M) — Ultimate Controller](https://community.home-assistant.io/t/z2m-philips-hue-dimmer-switch-ultimate-controller-device-triggers-double-clicks/977875)**
-  matches our `press` / `long_press` / `release` semantics and supports
-  on/off buttons, dim-up, dim-down, and double-click.
 - **[IKEA STYRBAR 4-Button Remote (ZHA / MQTT)](https://gist.github.com/ivvil/08c95674732b51bc4ccf79938471cdc9)**
-  is configurable per button with press and press-and-hold actions.
 
-Install via HACS → Frontend → "Add repository" → import by URL, or via
-`ha_import_blueprint`. Then pick the event entity of your physical
-button as the trigger.
+Install via HACS or the HA blueprint import dialog.
 
-### 2. Standard HA UI flow
+### 3. Standard HA UI flow
 
 From the device page (`Settings → Devices & entities →
 <your button> → ... → '+ Add to' → Create automation`), or
 from `Settings → Automations & scenes → + Create automation
 → Create new automation`, build the automation manually:
 
-- **Trigger**: state trigger on the event entity, `to: "press"`
-  (and optionally `to: "long_press"`, `to: "release"`).
+- **Trigger**: state trigger on the event entity, `attribute: event_type`,
+  `to: "press"` (and optionally `to: "long_press"`, `to: "release"`).
+  The event entity's `state` is a timestamp; the press/long_press/release
+  type lives on the `event_type` attribute, so filtering on the state
+  alone never fires.
 - **Action**: `light.toggle` (short press), or for smooth dim
   during hold:
   ```yaml
@@ -205,12 +248,11 @@ from `Settings → Automations & scenes → + Create automation
 - **Save**: the popup asks for a name. Use the friendly button name
   (e.g. "Keuken wandknop → Keuken LED") instead of the `event.<id>`.
 
-### 3. YAML reference (advanced)
+### 4. YAML reference (advanced)
 
-The packaged blueprints in this repo (`button_toggle`,
-`button_standard`, `button_dim`, `button_cover`) demonstrate the
-patterns. Copy the `trigger` and `action` blocks into your own
-`automations.yaml` and adapt the entity IDs and selectors.
+The packaged blueprints (`button_standard`, `button_scene`, `button_dim`,
+`button_cover`) demonstrate the patterns. Copy the `trigger` and
+`action` blocks into your own `automations.yaml` and adapt entity IDs.
 
 ## Actions
 
@@ -230,6 +272,7 @@ in the UI trace):
 triggers:
   - trigger: state
     entity_id: event.badkamer_knop
+    attribute: event_type
     to: "press"
 actions:
   - action: light.turn_on

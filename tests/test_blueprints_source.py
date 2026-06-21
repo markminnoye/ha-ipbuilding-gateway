@@ -69,6 +69,27 @@ def test_every_shipped_blueprint_declares_a_version() -> None:
             assert int(match.group(1)) >= 1, (
                 f"{path.name} declares an invalid version: {match.group(1)!r}"
             )
+            # The operator-facing description must echo the same version so
+            # the version is visible in the HA Blueprints UI. Operators
+            # otherwise have no way to tell whether the blueprint on their
+            # system is older than the one in the repo.
+            header_version = int(match.group(1))
+            description_match = re.search(
+                r"[Bb]lueprint-versie:\s*(\d+)", text
+            )
+            assert description_match, (
+                f"{path.name} is missing the operator-visible "
+                "`**Blueprint-versie: N.**` marker in its description. "
+                "The version header on line 1 is for the sync; the "
+                "description marker is what the operator sees in HA."
+            )
+            assert (
+                int(description_match.group(1)) == header_version
+            ), (
+                f"{path.name}: version in description "
+                f"({description_match.group(1)}) does not match the "
+                f"sync header ({header_version}). Keep them in sync."
+            )
 
 
 def test_dim_blueprint_does_not_set_invalid_max() -> None:
@@ -108,44 +129,148 @@ def test_dim_blueprint_has_helper_user_instructions() -> None:
     assert "spaties" in text or "space" in text
 
 
-def test_every_non_legacy_blueprint_has_alias_and_area_id() -> None:
-    """Every shipped blueprint (except the legacy dim stub and the
-    minimal `button_toggle`) exposes alias + area_id.
+def test_dim_blueprint_waits_on_press_before_toggling() -> None:
+    """button_dim v3 must wait for release/long_press before toggling.
 
-    Both top-level keys are part of the operator UX promise from the
-    2026-06-18 design spec: the automation name comes from the operator
-    (typically the friendly button name) and the room follows the
-    gateway-side ``room`` field via ``suggested_area``.
+    A bare ``light.toggle`` on the press trigger runs even when the
+    operator is starting a long press. v3 distinguishes short and long
+    presses with ``wait_for_trigger`` and only toggles when release fires
+    first within the timeout.
+    """
+    dim = _BLUEPRINT_DIR / "button_dim.yaml"
+    if not dim.exists():
+        return
+    text = dim.read_text(encoding="utf-8")
+    assert "wait_for_trigger" in text, (
+        "button_dim.yaml must use wait_for_trigger to disambiguate short "
+        "and long presses (v3 contract)."
+    )
+    assert "wait.trigger.to_state.attributes.event_type == 'release'" in text, (
+        "button_dim.yaml must only toggle the light when wait resolved on "
+        "a release event. The event_type lives on the event entity's "
+        "attribute, not on its state."
+    )
 
-    `button_toggle` is the minimal blueprint: HA asks for the room in
-    the popup that appears after pressing "Opslaan", so the blueprint
-    does not declare an `automation_area` input.
+
+def test_dim_blueprint_release_flip_guards_on_long_press() -> None:
+    """button_dim v3 must only flip the direction helper after a real long press.
+
+    Firing the flip on every release would also flip after a short press,
+    which makes the helper meaningless as a direction tracker.
+    """
+    dim = _BLUEPRINT_DIR / "button_dim.yaml"
+    if not dim.exists():
+        return
+    text = dim.read_text(encoding="utf-8")
+    assert "trigger.from_state.attributes.event_type == 'long_press'" in text, (
+        "button_dim.yaml must guard the release branch on "
+        "trigger.from_state.attributes.event_type == 'long_press' so a "
+        "short press does not flip the dim direction."
+    )
+
+
+def test_dim_blueprint_short_press_continues_on_timeout() -> None:
+    """button_dim short-press branch must continue past timeout and still toggle.
+
+    Without ``continue_on_timeout: true`` HA aborts the automation when no
+    release/long_press arrives in 600 ms, and the operator's press silently
+    does nothing. With it + a ``wait.trigger is none`` fallback the toggle
+    runs regardless.
+    """
+    dim = _BLUEPRINT_DIR / "button_dim.yaml"
+    if not dim.exists():
+        return
+    text = dim.read_text(encoding="utf-8")
+    # Locate the short-press wait block (after `id: press`). The blueprint
+    # has multiple wait_for_trigger blocks (one per choose branch), so we
+    # anchor on the press branch.
+    press_branch_idx = text.index("id: press")
+    press_block = text[press_branch_idx:]
+    # Constrain to the first wait_for_trigger that follows `id: press`.
+    press_wait = press_block[: press_block.index("- wait_for_trigger", 5) + 2000]
+    assert "continue_on_timeout: true" in press_wait, (
+        "button_dim.yaml short-press branch must declare "
+        "continue_on_timeout: true on its wait_for_trigger; otherwise HA "
+        "aborts on timeout and the toggle never runs."
+    )
+    # The fallback branch — `wait.trigger is none` → still toggle. Without
+    # this the toggle is skipped entirely when the gateway fails to send
+    # a follow-up event within 600 ms.
+    short_press_block = press_block[
+        : press_block.index("# Hold → repeat")
+        if "# Hold → repeat" in press_block
+        else len(press_block)
+    ]
+    assert "wait.trigger is none" in short_press_block, (
+        "button_dim.yaml short-press branch must include a `wait.trigger "
+        "is none` fallback that still toggles the light. Without it the "
+        "automation silently does nothing when no follow-up event arrives."
+    )
+
+
+def test_dim_blueprint_turns_light_on_when_dimming_from_off() -> None:
+    """button_dim v3 must turn the light on at 1% before dimming from off.
+
+    Without the turn-on step the first hold on an off lamp would never
+    produce light — ``brightness_step_pct`` only steps an already-on lamp.
+    """
+    dim = _BLUEPRINT_DIR / "button_dim.yaml"
+    if not dim.exists():
+        return
+    text = dim.read_text(encoding="utf-8")
+    assert "brightness_pct: 1" in text, (
+        "button_dim.yaml must turn the light on at 1% before dimming "
+        "from the off state."
+    )
+
+
+def test_no_blueprint_uses_area_id_at_top_level() -> None:
+    """No blueprint may declare a top-level ``area_id`` key.
+
+    ``area_id`` is not part of the Home Assistant automation schema —
+    HA rejected derived automations with
+    ``Message malformed: extra keys not allowed @ data['area_id']``
+    when the operator saved a ``button_standard`` instance. The room
+    must come from the Home Assistant save popup (or, in the future,
+    the automation registry area assignment), never from the
+    blueprint itself.
     """
     for path in _shipped_blueprints():
-        if path.name in ("dim_button.yaml", "button_toggle.yaml"):
-            continue
         text = path.read_text(encoding="utf-8")
-        assert "alias: !input automation_name" in text, (
-            f"{path.name} must expose `alias: !input automation_name`"
+        assert "area_id:" not in text, (
+            f"{path.name} must not declare `area_id:` — it is not a "
+            "valid top-level automation key. Use the HA save popup "
+            "to assign the room."
         )
-        assert "area_id: !input automation_area" in text, (
-            f"{path.name} must expose `area_id: !input automation_area`"
-        )
 
 
-def test_toggle_blueprint_only_uses_press_trigger() -> None:
-    """button_toggle.yaml must not react to long_press or release events.
+def test_no_blueprint_exposes_automation_name_or_area_input() -> None:
+    """No blueprint declares ``automation_name`` / ``automation_area`` inputs.
 
-    The toggle blueprint is the minimal-use-case. Avoiding the other
-    triggers keeps the GUI small and prevents accidental runs on hold.
+    The Home Assistant save popup prefills the alias with the
+    blueprint-name and prompts for the room. Re-declaring those fields
+    as blueprint inputs produced a confusing duplicate-label UX
+    (v3 of ``button_toggle``) and a save-time schema error
+    (v3 of ``button_standard``, ``button_dim``, ``button_cover``,
+    ``button_scene`` — all removed).
     """
-    path = _BLUEPRINT_DIR / "button_toggle.yaml"
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    assert 'to: "press"' in text
-    assert 'to: "long_press"' not in text
-    assert 'to: "release"' not in text
+    for path in _shipped_blueprints():
+        text = path.read_text(encoding="utf-8")
+        assert "automation_name" not in text, (
+            f"{path.name} must not declare an `automation_name` input. "
+            "The HA save popup fills in the alias; declaring it as a "
+            "blueprint input creates a duplicate-name UX."
+        )
+        assert "automation_area" not in text, (
+            f"{path.name} must not declare an `automation_area` input. "
+            "The HA save popup assigns the room; declaring it as a "
+            "blueprint input produces `extra keys not allowed @ "
+            "data['area_id']` when saving the derived automation."
+        )
+        assert "alias: !input" not in text, (
+            f"{path.name} must not declare `alias: !input ...`. "
+            "Let the HA save popup own the alias."
+        )
 
 
 def test_standard_blueprint_excludes_cover_and_release() -> None:
@@ -156,6 +281,12 @@ def test_standard_blueprint_excludes_cover_and_release() -> None:
     every press. The standard blueprint may still mention `cover` and
     `release` in its description text (e.g. as a pointer to the dedicated
     blueprints) — only the actions and triggers must stay out.
+
+    Note: v4 introduced a `wait_for_trigger` block inside the action
+    that *does* subscribe to the `release` event, but only as an
+    edge-detection source — never as a top-level trigger. The check
+    below inspects the top-level `trigger:` block to keep that
+    distinction explicit.
     """
     path = _BLUEPRINT_DIR / "button_standard.yaml"
     if not path.exists():
@@ -163,12 +294,101 @@ def test_standard_blueprint_excludes_cover_and_release() -> None:
     text = path.read_text(encoding="utf-8")
     # No cover service call should appear in the action block.
     assert "cover." not in text
-    # No release trigger id should be wired up.
-    assert 'to: "release"' not in text
+    # Top-level `trigger:` block must not subscribe to release/long_press.
+    # Split on the `action:` keyword so we only scan the top-level triggers.
+    trigger_block = text.split("action:", 1)[0]
+    assert 'to: "release"' not in trigger_block, (
+        "button_standard.yaml must not have a top-level trigger on "
+        "release — that fires on every press and races with the "
+        "press/long_press disambiguation in the action block."
+    )
+    assert 'to: "long_press"' not in trigger_block, (
+        "button_standard.yaml must not have a top-level trigger on "
+        "long_press — it would run alongside the press action when "
+        "the button is held past the hold threshold. Disambiguation "
+        "happens inside the action block via wait_for_trigger."
+    )
     # `activate_scene` is the only scene-shaped action; activate_scene
     # plus a cover domain would be contradictory — guard the input instead.
     input_text = text[text.index("input:"):]
     assert "cover" not in input_text
+
+
+def test_standard_blueprint_uses_wait_for_trigger_for_short_long_disambiguation() -> None:
+    """button_standard.yaml must use wait_for_trigger to pick press vs long_press.
+
+    The gateway broadcasts `press`, then (after the hold threshold) `long_press`,
+    then `release`. A naive blueprint with separate top-level triggers fires
+    the press action before the long_press event arrives. The v4 fix is to
+    subscribe only to `press` at the top level, then wait up to 600 ms
+    inside the action for `release` (short) or `long_press` (long).
+
+    v5 fix: HA sets ``wait.trigger`` to ``None`` on timeout — not the whole
+    ``wait`` variable. A guard that checks ``wait is none`` (the v4 mistake)
+    never triggers at timeout and leaves the second condition's
+    ``wait.trigger.to_state`` access unguarded, raising
+    ``UndefinedError: 'None' has no attribute 'to_state'``. v5 uses the
+    community-standard ``wait.trigger is none`` / ``wait.trigger is not none``
+    short-circuit guards.
+    """
+    path = _BLUEPRINT_DIR / "button_standard.yaml"
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    assert "wait_for_trigger:" in text, (
+        "button_standard.yaml must use wait_for_trigger to disambiguate "
+        "short and long presses (v4 contract)."
+    )
+    # Isolate the wait_for_trigger block by anchoring on the `action:` line
+    # that follows the trigger block. The top-level trigger section also
+    # mentions `wait_for_trigger` in a comment, so a naive `text.index()`
+    # would land in that comment.
+    action_idx = text.index("\naction:")
+    trigger_block = text[:action_idx]
+    # The description (above `trigger:`) can legitimately mention
+    # `wait_for_trigger` as an English term — only the YAML sections
+    # (trigger, variables, mode) must not contain an actual `wait_for_trigger`
+    # block. So we anchor on `trigger:` instead of the start of the file.
+    yaml_body_idx = text.index("\ntrigger:")
+    yaml_trigger_block = text[yaml_body_idx:action_idx]
+    assert "wait_for_trigger" not in yaml_trigger_block or all(
+        line.lstrip().startswith("#") for line in yaml_trigger_block.splitlines()
+        if "wait_for_trigger" in line
+    ), "wait_for_trigger must live inside the action block, not at the trigger level"
+    wait_block = text[action_idx:]
+    assert 'attribute: event_type' in wait_block, (
+        "wait_for_trigger in button_standard.yaml must filter on "
+        "attribute: event_type (event entities store press/long_press/"
+        "release in the attribute, not the state)."
+    )
+    assert 'to: "long_press"' in wait_block
+    assert 'to: "release"' in wait_block
+    assert "milliseconds:" in wait_block or "seconds:" in wait_block, (
+        "wait_for_trigger must specify a timeout so a missing release "
+        "edge does not stall the automation."
+    )
+    # v5 community-style guards: short-press branch matches either a real
+    # `release` event or a timeout (wait.trigger is none); long-press branch
+    # only matches a real long_press event (wait.trigger is not none).
+    # The legacy `wait is none` form is rejected because it never fires on
+    # timeout — HA keeps `wait` and only nulls out `wait.trigger`.
+    assert "wait.trigger is none" in wait_block, (
+        "button_standard.yaml must guard the timeout branch with "
+        "`wait.trigger is none` (community convention; v4's `wait is none` "
+        "never matches at timeout and leaves the next attribute access "
+        "unguarded → UndefinedError)."
+    )
+    assert "wait.trigger is not none" in wait_block, (
+        "button_standard.yaml must guard the long_press branch with "
+        "`wait.trigger is not none` before reading `to_state.attributes`."
+    )
+    assert "wait is none" not in wait_block or all(
+        line.lstrip().startswith("#") for line in wait_block.splitlines()
+        if "wait is none" in line and "wait.trigger is none" not in line
+    ), (
+        "Legacy `wait is none` checks are not a valid timeout guard — HA "
+        "keeps `wait` itself defined at timeout; only `wait.trigger` is none."
+    )
 
 
 def test_cover_blueprint_uses_hold_and_release_triggers() -> None:
@@ -185,101 +405,78 @@ def test_cover_blueprint_uses_hold_and_release_triggers() -> None:
     assert 'to: "release"' in text
 
 
-def test_toggle_blueprint_has_no_automation_area_input() -> None:
-    """`button_toggle.yaml` must not declare an `automation_area` input.
+def test_button_blueprints_use_event_type_attribute_on_triggers() -> None:
+    """Every active blueprint trigger on `event.<hw_id>` must filter on `event_type`.
 
-    The automation area is asked by Home Assistant in the popup that
-    appears after pressing "Opslaan". Declaring it as a blueprint input
-    would produce a duplicate "Ruimte" label in the UI.
+    Event entities expose a timestamp as state and put the press/long_press/release
+    type in `attributes.event_type`. A bare `to: "press"` on the state trigger
+    matches the timestamp and never fires — see the regression test failure
+    for "Hal R → bureau toggle" reported on 2026-06-19.
     """
-    path = _BLUEPRINT_DIR / "button_toggle.yaml"
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    assert "area_id: !input automation_area" not in text, (
-        "button_toggle.yaml must not expose `area_id: !input "
-        "automation_area`. HA asks for the room in the popup after "
-        "Opslaan — duplicating it as a blueprint input is confusing."
-    )
-    assert "automation_area" not in text, (
-        "button_toggle.yaml must not declare an `automation_area` input "
-        "at all (the field name leaks via the variable too)."
-    )
+    targets = {
+        "button_standard.yaml": ["press"],
+        "button_cover.yaml": ["press", "long_press", "release"],
+        "button_scene.yaml": ["press", "long_press"],
+        "button_dim.yaml": ["press", "long_press", "release"],
+        "dim_button.yaml": ["press"],
+    }
+    for filename, event_types in targets.items():
+        path = _BLUEPRINT_DIR / filename
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        # Every `to: "press"` (etc) trigger must also carry `attribute: event_type`.
+        for evt in event_types:
+            pattern = re.compile(
+                r"to:\s*[\"']" + re.escape(evt) + r"[\"']"
+            )
+            for match in pattern.finditer(text):
+                # Look back ~120 chars for `attribute: event_type` on the same block.
+                window = text[max(0, match.start() - 200) : match.end() + 50]
+                assert "attribute: event_type" in window, (
+                    f"{filename}: trigger for `{evt}` is missing "
+                    "`attribute: event_type`. Event entities store the "
+                    "press/long_press/release value in the attribute, "
+                    "not in the state."
+                )
 
 
-def test_toggle_blueprint_uses_entity_selector_not_target() -> None:
-    """`button_toggle.yaml` must use an `entity:` selector, not `target:`.
+def test_standard_blueprint_uses_action_selector() -> None:
+    """`button_standard.yaml` must use an `action:` selector per phase (v6 contract).
 
-    The minimal toggle blueprint is for a single entity. A `target:`
-    selector exposes the entity/device/area tabbladen, plus a
-    "Doel toevoegen" button. Both are noise for the minimal use case.
-    """
-    path = _BLUEPRINT_DIR / "button_toggle.yaml"
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    # target_kind / target_area zijn verwijderd in de UX-fix.
-    assert "target_kind" not in text, (
-        "button_toggle.yaml must not have a target_kind field"
-    )
-    assert "target_area" not in text, (
-        "button_toggle.yaml must not have a target_area field"
-    )
-    # Het enige target_entity-veld moet een entity-selector gebruiken,
-    # niet een target-selector.
-    assert "target: !input target_entity" not in text, (
-        "button_toggle.yaml must not pass a target: !input to the action"
-    )
-    # De selector voor target_entity moet `entity:` zijn (niet `target:`).
-    assert "selector:\n        entity:" in text, (
-        "button_toggle.yaml must declare an `entity:` selector for the target"
-    )
+    v6 replaces the v5 fixed `select:` (Geen / Aan / Uit / Toggle /
+    Scene activeren) + `target:` selector pair with a single `action:`
+    selector per phase. The operator gets the full HA automation action
+    editor — any service, any target, any data — instead of a constrained
+    5-way choice + scene-guard logic in the blueprint itself.
 
-
-def test_toggle_blueprint_has_no_automation_name_input() -> None:
-    """`button_toggle.yaml` declares no `automation_name` field or `alias:`.
-
-    Removing the field lets the Home Assistant save popup fill in the
-    alias, avoiding the mismatch between `automation_name` and the
-    blueprint-name that the popup uses as default. Operators type the
-    friendly name (e.g. "Keuken wandknop → Keuken LED") directly in
-    the popup that appears after pressing "Opslaan".
-    """
-    path = _BLUEPRINT_DIR / "button_toggle.yaml"
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    assert "automation_name" not in text, (
-        "button_toggle.yaml must not declare an `automation_name` input. "
-        "The Home Assistant save popup fills in the alias; declaring it "
-        "as a blueprint input produces a confusing mismatch with the "
-        "blueprint-name the popup uses as default."
-    )
-    # Geen `alias:` op het automation-niveau — laat de popup hem invullen.
-    assert "alias: !input" not in text, (
-        "button_toggle.yaml must not declare `alias: !input ...`. "
-        "Let Home Assistant's save popup own the alias."
-    )
-
-
-def test_standard_blueprint_uses_target_selector() -> None:
-    """`button_standard.yaml` must use a `target:` selector per phase.
-
-    A `target:` selector lets the operator pick an entity, multiple
-    entities, or an area in one widget. The older split between
-    `press_entity_target` (target selector) and `press_area` (area
-    selector) caused duplicate "Ruimte" labels in the UI.
+    The blueprint just disambiguates short vs long press and hands the
+    resolved branch to the operator-defined action sequence via
+    `sequence: !input ...`.
     """
     path = _BLUEPRINT_DIR / "button_standard.yaml"
     if not path.exists():
         return
     text = path.read_text(encoding="utf-8")
-    # Per fase moet er een `press_target` / `long_press_target` zijn
-    # met een target-selector.
-    assert "press_target:" in text
-    assert "long_press_target:" in text
-    # Oude velden moeten weg zijn.
+    # Per fase moet er een action-selector-input zijn.
+    assert "press_action:" in text, (
+        "button_standard.yaml must declare a `press_action` input"
+    )
+    assert "long_press_action:" in text, (
+        "button_standard.yaml must declare a `long_press_action` input"
+    )
+    # Action-selector: letterlijk `selector:\n        action:` (action is
+    # de canonieke selector-key uit HA, zonder opties).
+    assert re.search(
+        r"press_action:[\s\S]*?selector:\s*\n\s+action:", text
+    ), "press_action input must use `selector: action:`"
+    assert re.search(
+        r"long_press_action:[\s\S]*?selector:\s*\n\s+action:", text
+    ), "long_press_action input must use `selector: action:`"
+    # De oude select/target-inputs moeten weg zijn.
     for forbidden in (
+        "press_target:",
+        "long_press_target:",
         "press_target_kind",
         "press_entity_target",
         "press_area:",
@@ -288,40 +485,72 @@ def test_standard_blueprint_uses_target_selector() -> None:
         "long_press_area:",
     ):
         assert forbidden not in text, (
-            f"button_standard.yaml must not declare `{forbidden}`; use the "
-            "combined `*_target` field with a `target:` selector instead."
+            f"button_standard.yaml must not declare `{forbidden}`; v6 uses "
+            "an `action:` selector for the whole sequence."
+        )
+    # De vaste actie-keuze (Geen/Aan/Uit/Toggle/Scene activeren) moet weg
+    # zijn — die zit nu in de action-editor.
+    for forbidden in (
+        "value: \"activate_scene\"",
+        "value: \"none\"\n                  - label: Aan",
+        "press_action == 'activate_scene'",
+        "press_has_scene",
+        "long_press_has_scene",
+    ):
+        assert forbidden not in text, (
+            f"button_standard.yaml must not contain `{forbidden}`; v6 has "
+            "no fixed action matrix or scene-guard — the operator picks "
+            "the service in the action-editor."
         )
 
 
-def test_standard_blueprint_has_scene_guard() -> None:
-    """`button_standard.yaml` must guard scene-targeted actions.
+def test_standard_blueprint_wires_press_long_action_inputs() -> None:
+    """`button_standard.yaml` must call `sequence: !input` on each branch.
 
-    A scene has no on/off/toggle state, so `on`/`off`/`toggle` actions
-    must skip when the target contains a scene entity. Likewise,
-    `activate_scene` must skip when the target has no scene entity.
-    The blueprint must derive `*_has_scene` from the target and
-    reference it in conditions.
+    The community-canonical wiring for an `action:` selector is
+    `sequence: !input <input_name>` inside a `choose:` block. The
+    blueprint should not embed any pre-baked service calls under the
+    press or long_press branches — the whole point of v6 is that the
+    operator owns the action list.
     """
     path = _BLUEPRINT_DIR / "button_standard.yaml"
     if not path.exists():
         return
     text = path.read_text(encoding="utf-8")
-    assert "press_has_scene" in text, (
-        "button_standard.yaml must derive `press_has_scene` from the target"
+    action_idx = text.index("\naction:")
+    action_block = text[action_idx:]
+    assert "sequence: !input press_action" in action_block, (
+        "button_standard.yaml must run the operator-defined press "
+        "action list via `sequence: !input press_action`."
     )
-    assert "long_press_has_scene" in text, (
-        "button_standard.yaml must derive `long_press_has_scene` from the target"
+    assert "sequence: !input long_press_action" in action_block, (
+        "button_standard.yaml must run the operator-defined long_press "
+        "action list via `sequence: !input long_press_action`."
     )
-    # On/off/toggle voor press mogen alleen lopen als er GEEN scene in zit.
-    assert "press_action == 'on' and not press_has_scene" in text, (
-        "press `on` must be guarded by `not press_has_scene`"
-    )
-    assert "press_action == 'off' and not press_has_scene" in text
-    assert "press_action == 'toggle' and not press_has_scene" in text
-    # activate_scene moet lopen als er WEL een scene in zit.
-    assert (
-        "press_action == 'activate_scene' and press_has_scene" in text
-    ), "press `activate_scene` must be guarded by `press_has_scene`"
+    # Geen hardcoded services meer onder de press/long_press branches.
+    for forbidden in (
+        "homeassistant.toggle",
+        "homeassistant.turn_on",
+        "homeassistant.turn_off",
+        "scene.turn_on",
+    ):
+        assert forbidden not in action_block, (
+            f"button_standard.yaml action block must not hardcode "
+            f"`{forbidden}`; the operator supplies services via the "
+            "action-selector input."
+        )
+
+
+def test_scene_blueprint_activates_scenes_on_press_and_long_press() -> None:
+    """button_scene.yaml must turn on scenes for press and optional long_press."""
+    path = _BLUEPRINT_DIR / "button_scene.yaml"
+    assert path.exists(), "button_scene.yaml must be shipped"
+    text = path.read_text(encoding="utf-8")
+    assert 'to: "press"' in text
+    assert 'to: "long_press"' in text
+    assert "scene.turn_on" in text
+    assert 'to: "release"' not in text
+    assert "cover." not in text
 
 
 def test_select_option_values_are_strings() -> None:

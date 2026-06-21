@@ -25,6 +25,109 @@ anders meldt.
 
 ## [Unreleased]
 
+### Fixed
+- **Blueprint triggers vuurden niet op event entities.** Alle
+  state-triggers in de meegeleverde blueprints (`button_toggle`,
+  `button_standard`, `button_dim`, `button_cover`, `button_scene`,
+  `dim_button`) filterden op `to: "press"` / `"long_press"` /
+  `"release"` tegen de `state`, terwijl die voor event entities een
+  timestamp bevat. Het event-type leeft op `attributes.event_type`.
+  Hierdoor vuurde bv. "Hal R → bureau toggle" nooit, terwijl de native
+  HA-automations (device-trigger) wel werkten. Triggers zijn voorzien
+  van `attribute: event_type` + `not_from: [unavailable, unknown]`.
+  In `button_dim` zijn ook de templates aangepast die `trigger.state`
+  vergeleken met event-namen.
+- **Versie-bumps** van alle blueprints (4 → 5 voor `button_toggle`,
+  2 → 3 voor `button_standard`, 3 → 4 voor `button_cover` en
+  `button_dim`, 1 → 2 voor `button_scene` en `dim_button` stub) zodat
+  [`blueprints.py`](custom_components/ha_ipbuilding_gateway/blueprints.py)
+  de upgrade-sync triggert op bestaande HA-installaties.
+- **`button_standard.yaml` press/long_press onderscheid.** Bij een
+  lange druk vuurde zowel de press- als de long_press-actie: de
+  gateway broadcastt direct `press` en (na de hold-drempel) opnieuw
+  `long_press`, dus twee top-level triggers vuurden achter elkaar.
+  Het action-blok gebruikt nu het `wait_for_trigger`-patroon uit
+  [`button_dim.yaml`](custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_dim.yaml):
+  één trigger op `press`, 600 ms wachten op `release` of `long_press`,
+  en pas daarna de juiste actie kiezen. Korte drukken gedragen zich
+  identiek; lange drukken voeren alleen nog de long_press-actie uit.
+  Versie-bump 3 → 4.
+- **`button_standard.yaml` timeout `UndefinedError`** (v4 had een
+  tikfout in de guard). Home Assistant zet `wait.trigger` op `none`
+  bij timeout — **niet** de hele `wait`-variabele. De v4-guard
+  `wait is none` sloeg daardoor nooit aan op het timeout-pad, en de
+  daaropvolgende `wait.trigger.to_state.attributes.event_type`-access
+  op `none` gooide `UndefinedError: 'None' has no attribute 'to_state'`
+  in de log bij elke korte druk. v5 volgt de community-conventie
+  (HA-forum + Awesome HA Blueprints): `wait.trigger is none` voor
+  het timeout-pad (→ press-actie als zachte fallback) en
+  `wait.trigger is not none` voor het event-pad. Pattern is
+  identiek aan wat `button_dim.yaml` al deed. Versie-bump 4 → 5.
+- **`button_dim.yaml` korte-druk deed niets bij ontbrekende follow-up.**
+  De short-press `wait_for_trigger` had geen `continue_on_timeout: true`,
+  en de guard was `wait.trigger is not none and ... == 'release'`. Wanneer
+  de gateway om welke reden dan ook geen `release` of `long_press`
+  binnen 600 ms stuurde (trage bus, race, firmware-bug), stopte HA de
+  automation op timeout en draaide de toggle nooit — de operator
+  drukte op de knop en er gebeurde niets. v5 voegt
+  `continue_on_timeout: true` toe plus een `wait.trigger is none`
+  fallback-tak die alsnog de toggle uitvoert (Hue-style: de operator
+  verwacht feedback). Versie-bump 4 → 5 (`button_dim.yaml`).
+- **`button_standard.yaml` v6 — action-selector voor volledige vrijheid.**
+  De v5-fixed `select:` (Geen / Aan / Uit / Toggle / Scene activeren)
+  + `target:`-selector per fase zijn vervangen door één `selector:
+  action:`-input per fase. De operator krijgt nu de volledige HA
+  action-editor (zoals bij een gewone automation) en kan elke service,
+  elk doel en alle data (brightness, transition, helpers, scripts,
+  notificaties, …) zelf kiezen. De blueprint disambigueert alleen nog
+  press vs long press; de scene-guard (`press_has_scene` /
+  `long_press_has_scene`) en de vaste service-keuzes verdwijnen.
+  Pattern volgt de HA-community-conventie: `sequence: !input
+  press_action` in een `choose:`-tak. Versie-bump 5 → 6. Bestaande
+  "Hal R → Bureau"-instanties verliezen hun `press_target`-referentie;
+  heraanmaken van de automation vanaf deze blueprint is nodig
+  (`blueprints.py` synchroniseert het bestand zelf, maar de input-
+  namen zijn gewijzigd).
+
+### Changed
+- **`button_toggle` v5**: terug naar de **`target:`-selector** (HA
+  Motion-activated Light UX). De `entity:`-selector uit v2/v4 was
+  te nauw voor de dominante operator-flow ("toggle de lamp(en) in
+  deze ruimte"). `light_target` accepteert nu één of meerdere
+  entiteiten, een apparaat of een hele ruimte via de tabs Entiteit /
+  Apparaat / Ruimte. De actie geeft het input rechtstreeks door
+  (`target: !input light_target`) zodat meerdere doelen of een
+  area-toggle ondersteund worden.
+
+### Tests
+- `test_toggle_blueprint_uses_target_selector` vervangt de
+  omgekeerde entity-only test.
+- `test_button_blueprints_use_event_type_attribute_on_triggers` is
+  een nieuwe regression-test die voor elke blueprint afdwingt dat
+  `attribute: event_type` op de trigger staat.
+- Dim-template-assertions verwijzen nu naar
+  `attributes.event_type` in plaats van `state`.
+
+### Migratie
+- Bestaande automations die vanuit de oude `button_toggle`-blueprint
+  zijn aangemaakt behouden hun opgeslagen YAML (inclusief het foute
+  `to: "press"` zonder `attribute`); die moeten **opnieuw
+  aangemaakt** worden of handmatig de trigger + target fixen. De
+  blueprint-sync upgrade't alleen het blueprint-bestand zelf.
+- Legacy `ipbuilding_gateway_ha/button_toggle.yaml` op HA kan
+  handmatig verwijderd worden; de v5-versie staat onder
+  `ha_ipbuilding_gateway/`.
+
+### Removed
+- **`button_toggle.yaml`** — verwijderd. De combinatie van
+  `button_standard` met de action-selector (kies
+  `homeassistant.toggle` als service op een `target:` van lampen /
+  schakelaars / ruimte) dekt dezelfde flow met meer vrijheid. Geen
+  nieuwe instanties meer vanuit deze blueprint; bestaande
+  automations blijven werken op hun opgeslagen YAML tot de
+  operator ze verwijdert of heraanmaakt vanuit
+  `button_standard.yaml`.
+
 ## [1.2.2] - 2026-06-19
 
 ### Changed

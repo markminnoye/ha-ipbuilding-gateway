@@ -1,4 +1,4 @@
-# ipbuilding_blueprint_version: 1
+# ipbuilding_blueprint_version: 2
 # NOTE: This file is a back-compat stub kept for existing automations.
 # The blueprint logic now lives in `button_dim.yaml` and ships with the
 # companion as of v0.5.0. New automations should use `button_dim.yaml`
@@ -12,7 +12,8 @@
 blueprint:
   name: "[VEROUDERD] IPBuilding button — toggle + dim during hold"
   description: >
-    DEPRECATED — use `button_dim.yaml` from the same companion instead.
+    **DEPRECATED stub — blueprint-versie: 2.** Use `button_dim.yaml`
+    from the same companion instead.
     This stub is kept so existing automations that reference this path
     continue to load. The companion now ships a renamed and improved
     blueprint under `ha_ipbuilding_gateway/button_dim.yaml` with:
@@ -91,7 +92,11 @@ alias: "[VEROUDERD] migreer naar button_dim.yaml"
 trigger:
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "press"
+    not_from:
+      - unavailable
+      - unknown
     id: press
 
 action:

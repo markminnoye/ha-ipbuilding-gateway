@@ -1,8 +1,8 @@
-# ipbuilding_blueprint_version: 2
+# ipbuilding_blueprint_version: 5
 blueprint:
   name: "[Voorbeeld] IPBuilding wandknop — gordijn"
   description: >
-    **Dit is een voorbeeld-blueprint** — niet productie-klaar. De
+    **Blueprint-versie: 5.** **Dit is een voorbeeld-blueprint** — niet productie-klaar. De
     Companion-ontwikkelaars hebben geen `cover` hardware om dit te
     testen; de blueprint is naar beste weten opgebouwd uit de
     IPBuilding-specificatie en de Home Assistant `cover`-services,
@@ -36,15 +36,6 @@ blueprint:
       name: Algemeen
       icon: mdi:cog-outline
       input:
-        automation_name:
-          name: Naam automatisering
-          description: >
-            Gebruik de weergavenaam van de knop, bv.
-            "Woonkamer wandknop → Gordijn".
-          default: ""
-          selector:
-            text:
-
         button_entity:
           name: Knop
           description: >
@@ -55,15 +46,6 @@ blueprint:
               filter:
                 - domain: event
                   integration: ha_ipbuilding_gateway
-
-        automation_area:
-          name: Ruimte
-          description: >
-            Ruimte voor de automatisering. Volgt de `room` uit
-            devices.json / `suggested_area` op het knop-device.
-          default: ""
-          selector:
-            area:
 
         cover_entity:
           name: Gordijn
@@ -88,9 +70,9 @@ blueprint:
             select:
               options:
                 - label: Openen
-                  value: open
+                  value: "open"
                 - label: Sluiten
-                  value: close
+                  value: "close"
 
     release_section:
       name: Loslaten
@@ -106,9 +88,9 @@ blueprint:
             select:
               options:
                 - label: Stoppen
-                  value: stop
+                  value: "stop"
                 - label: Geen
-                  value: none
+                  value: "none"
 
     press_section:
       name: Korte druk (optioneel)
@@ -126,16 +108,14 @@ blueprint:
             select:
               options:
                 - label: Geen
-                  value: none
+                  value: "none"
                 - label: Openen
-                  value: open
+                  value: "open"
                 - label: Sluiten
-                  value: close
+                  value: "close"
                 - label: Toggle
-                  value: toggle
+                  value: "toggle"
 
-alias: !input automation_name
-area_id: !input automation_area
 mode: single
 
 variables:
@@ -146,15 +126,27 @@ variables:
 trigger:
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "press"
+    not_from:
+      - unavailable
+      - unknown
     id: press
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "long_press"
+    not_from:
+      - unavailable
+      - unknown
     id: long_press
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "release"
+    not_from:
+      - unavailable
+      - unknown
     id: release
 
 action:

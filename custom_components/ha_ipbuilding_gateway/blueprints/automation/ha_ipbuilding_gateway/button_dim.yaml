@@ -1,35 +1,35 @@
-# ipbuilding_blueprint_version: 2
+# ipbuilding_blueprint_version: 5
 blueprint:
   name: IPBuilding wandknop — dimmen
   description: >
-    Hue-style continuous dimming for an IPBuilding IP1100PoE wall switch.
+    **Blueprint-versie: 5.** Hue-style continuous dimming for an
+    IPBuilding IP1100PoE wall switch.
     Use this for a wall button that should:
       - toggle the target light on a short press;
-      - dim the target light while held (direction flips on release and
-        on hitting 1 % / 100 %).
+      - dim the target light while held;
+      - flip the dim direction on release (after a long press) and on
+        hitting 1 % / 100 %.
 
     The companion exposes `press`, `long_press`, and `release` events on
     the event entity of each physical button — this blueprint hooks into
     those via state triggers, so it does not need any extra helper wiring
     beyond a single `input_boolean` direction tracker.
 
-    A separate `button_cover` blueprint handles the hold-to-move / release-to-stop
-    pattern for curtains and screens. A separate `button_standard` blueprint
-    handles plain on/off/toggle/scene mappings for short and long press.
+    Behaviour:
+      - Short press → toggle the light (no direction flip).
+      - Hold (long_press) → dim loop. The first hold turns the light on
+        at 1 % when it was off, then continues dimming.
+      - Release after a long press → flip the direction helper.
+      - Release after a short press → no flip (the helper only flips
+        after a real long press, or on hitting a brightness endpoint).
+
+    A separate `button_cover` blueprint handles hold-to-move / release-to-stop
+    for curtains and screens. A separate `button_standard` blueprint handles
+    plain on/off/toggle/scene mappings for short and long press.
   domain: automation
   source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_dim.yaml
 
   input:
-    automation_name:
-      name: Naam automatisering
-      description: >
-        Gebruik de weergavenaam van de knop (zichtbaar in de entity-kiezer),
-        bv. "Keuken wandknop → Keuken LED". De entity_id `event.<hardware_id>`
-        is bewust niet leesbaar en hoort niet in de alias.
-      default: ""
-      selector:
-        text:
-
     button_entity:
       name: Knop
       description: >
@@ -41,17 +41,6 @@ blueprint:
           filter:
             - domain: event
               integration: ha_ipbuilding_gateway
-
-    automation_area:
-      name: Ruimte
-      description: >
-        Ruimte voor de automatisering. De companion zet de `room` uit
-        devices.json als `suggested_area` op het knop-device; kies hier
-        dezelfde ruimte zodat de automatisering in de Lovelace-ruimte
-        verschijnt.
-      default: ""
-      selector:
-        area:
 
     target_light:
       name: Lamp
@@ -66,7 +55,8 @@ blueprint:
       description: >
         `input_boolean` helper die de huidige dim-richting bijhoudt.
         AAN = volgende hold dimt omhoog, UIT = omlaag. De blueprint
-        flipt deze bij elke release en bij het bereiken van 1 % / 100 %.
+        flipt deze na elke release van een lange druk en bij het
+        bereiken van 1 % / 100 %.
 
         Aanmaken: Instellingen → Apparaten & services → Helpers → Toggle.
         Vul bij **Naam** een leesbaar label in (mag spaties bevatten),
@@ -116,21 +106,30 @@ blueprint:
 
 mode: restart
 
-alias: !input automation_name
-area_id: !input automation_area
-
 trigger:
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "press"
+    not_from:
+      - unavailable
+      - unknown
     id: press
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "long_press"
+    not_from:
+      - unavailable
+      - unknown
     id: hold
   - platform: state
     entity_id: !input button_entity
+    attribute: event_type
     to: "release"
+    not_from:
+      - unavailable
+      - unknown
     id: release
   # Auto-flip on hitting either brightness endpoint.
   - platform: numeric_state
@@ -150,14 +149,48 @@ trigger:
 
 action:
   - choose:
-      # Short press → toggle the light.
+      # Short press → wait briefly. If release fires first we toggle the
+      # light; if long_press fires first the hold branch takes over; if
+      # the timeout fires without any follow-up event we still toggle —
+      # the operator pressed the button, so something should happen
+      # (Hue-style fallback). The `continue_on_timeout: true` is
+      # essential: without it HA aborts the automation on timeout and
+      # the toggle never runs.
       - conditions:
           - condition: trigger
             id: press
         sequence:
-          - action: light.toggle
-            target:
-              entity_id: !input target_light
+          - wait_for_trigger:
+              - platform: state
+                entity_id: !input button_entity
+                attribute: event_type
+                to: "long_press"
+              - platform: state
+                entity_id: !input button_entity
+                attribute: event_type
+                to: "release"
+            timeout:
+              milliseconds: 600
+            continue_on_timeout: true
+          - choose:
+              - conditions:
+                  # Real release event within timeout — guaranteed short press.
+                  - condition: template
+                    value_template: "{{ wait.trigger is not none and wait.trigger.to_state.attributes.event_type == 'release' }}"
+                sequence:
+                  - action: light.toggle
+                    target:
+                      entity_id: !input target_light
+              # Timeout (wait.trigger is none) — still treat as a short press
+              # and toggle. Matches the same default behaviour as a normal
+              # short press so the operator gets feedback either way.
+              - conditions:
+                  - condition: template
+                    value_template: "{{ wait.trigger is none }}"
+                sequence:
+                  - action: light.toggle
+                    target:
+                      entity_id: !input target_light
 
       # Hold → repeat the dim loop while the trigger id is "hold".
       - conditions:
@@ -169,6 +202,19 @@ action:
               interval_ms: !input dim_interval_ms
               direction_helper: !input direction_helper
               sign: "{{ 1 if is_state(direction_helper, 'on') else -1 }}"
+          # If the light is off, turn it on at 1 % before dimming so the
+          # first hold doesn't start from a black lamp.
+          - if:
+              - condition: state
+                entity_id: !input target_light
+                state: "off"
+            then:
+              - action: light.turn_on
+                target:
+                  entity_id: !input target_light
+                data:
+                  brightness_pct: 1
+                  transition: 0.2
           - repeat:
               while:
                 - condition: trigger
@@ -183,10 +229,13 @@ action:
                 - delay:
                     milliseconds: !input dim_interval_ms
 
-      # Release → flip the direction helper for the next hold.
+      # Release → flip the direction helper only when the previous state
+      # was long_press (i.e. an actual long press happened).
       - conditions:
           - condition: trigger
             id: release
+          - condition: template
+            value_template: "{{ trigger.from_state is not none and trigger.from_state.attributes.event_type == 'long_press' }}"
         sequence:
           - action: input_boolean.toggle
             target:
