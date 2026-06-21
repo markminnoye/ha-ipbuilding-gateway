@@ -132,23 +132,30 @@ def test_dim_blueprint_has_helper_user_instructions() -> None:
 def test_dim_blueprint_waits_on_press_before_toggling() -> None:
     """button_dim v3 must wait for release/long_press before toggling.
 
-    A bare ``light.toggle`` on the press trigger runs even when the
-    operator is starting a long press. v3 distinguishes short and long
-    presses with ``wait_for_trigger`` and only toggles when release fires
-    first within the timeout.
+    v6 dropped the v3 wait_for_trigger: the gateway now classifies the press
+    itself, emitting ``single_press`` on release of a short tap and
+    ``long_press`` at the threshold. A bare ``light.toggle`` on a direct
+    ``single_press`` trigger only fires for actual short presses — long
+    presses never reach that branch because the gateway emits
+    ``long_press`` instead, so the race the v3 wait_for_trigger was
+    designed to handle is gone.
     """
     dim = _BLUEPRINT_DIR / "button_dim.yaml"
     if not dim.exists():
         return
     text = dim.read_text(encoding="utf-8")
-    assert "wait_for_trigger" in text, (
-        "button_dim.yaml must use wait_for_trigger to disambiguate short "
-        "and long presses (v3 contract)."
+    # v6 hooks the toggle directly into a `single_press` trigger. No
+    # `wait_for_trigger` is allowed — the gateway disambiguates now.
+    assert "wait_for_trigger" not in text, (
+        "button_dim.yaml must not use wait_for_trigger — the gateway "
+        "classifies the press into single_press / long_press, so a "
+        "timing-based disambiguation is no longer needed and reintroduces "
+        "the 600 ms vs 1.5 s race."
     )
-    assert "wait.trigger.to_state.attributes.event_type == 'release'" in text, (
-        "button_dim.yaml must only toggle the light when wait resolved on "
-        "a release event. The event_type lives on the event entity's "
-        "attribute, not on its state."
+    trigger_block = text.split("action:", 1)[0]
+    assert 'to: "single_press"' in trigger_block, (
+        "button_dim.yaml must trigger on single_press at the top level "
+        "(v6 contract: gateway classifies the press)."
     )
 
 
@@ -170,41 +177,27 @@ def test_dim_blueprint_release_flip_guards_on_long_press() -> None:
 
 
 def test_dim_blueprint_short_press_continues_on_timeout() -> None:
-    """button_dim short-press branch must continue past timeout and still toggle.
+    """button_dim v6 dropped the v3 short-press wait_for_trigger.
 
-    Without ``continue_on_timeout: true`` HA aborts the automation when no
-    release/long_press arrives in 600 ms, and the operator's press silently
-    does nothing. With it + a ``wait.trigger is none`` fallback the toggle
-    runs regardless.
+    v5 used a 600 ms ``wait_for_trigger`` with ``continue_on_timeout: true``
+    and a ``wait.trigger is none`` fallback. v6 hooks the toggle into a
+    direct ``single_press`` trigger — the gateway already decided that
+    this was a short press, so no timing logic is needed. This test
+    pins that contract: any reintroduction of wait_for_trigger requires
+    removing the assertion below.
     """
     dim = _BLUEPRINT_DIR / "button_dim.yaml"
     if not dim.exists():
         return
     text = dim.read_text(encoding="utf-8")
-    # Locate the short-press wait block (after `id: press`). The blueprint
-    # has multiple wait_for_trigger blocks (one per choose branch), so we
-    # anchor on the press branch.
-    press_branch_idx = text.index("id: press")
-    press_block = text[press_branch_idx:]
-    # Constrain to the first wait_for_trigger that follows `id: press`.
-    press_wait = press_block[: press_block.index("- wait_for_trigger", 5) + 2000]
-    assert "continue_on_timeout: true" in press_wait, (
-        "button_dim.yaml short-press branch must declare "
-        "continue_on_timeout: true on its wait_for_trigger; otherwise HA "
-        "aborts on timeout and the toggle never runs."
+    assert "wait_for_trigger" not in text, (
+        "button_dim.yaml must not use wait_for_trigger on the short-press "
+        "branch (v6 contract: gateway classifies the press directly into "
+        "single_press / long_press)."
     )
-    # The fallback branch — `wait.trigger is none` → still toggle. Without
-    # this the toggle is skipped entirely when the gateway fails to send
-    # a follow-up event within 600 ms.
-    short_press_block = press_block[
-        : press_block.index("# Hold → repeat")
-        if "# Hold → repeat" in press_block
-        else len(press_block)
-    ]
-    assert "wait.trigger is none" in short_press_block, (
-        "button_dim.yaml short-press branch must include a `wait.trigger "
-        "is none` fallback that still toggles the light. Without it the "
-        "automation silently does nothing when no follow-up event arrives."
+    assert "light.toggle" in text, (
+        "button_dim.yaml must still toggle the target light on a short "
+        "press; v6 fires it from the single_press branch."
     )
 
 
@@ -506,14 +499,26 @@ def test_standard_blueprint_wires_press_long_action_inputs() -> None:
 
 
 def test_scene_blueprint_activates_scenes_on_press_and_long_press() -> None:
-    """button_scene.yaml must turn on scenes for press and optional long_press."""
+    """button_scene.yaml must turn on scenes for single_press and optional long_press.
+
+    v4 hooks into ``single_press`` (gateway-classified short tap) and
+    ``long_press`` directly. The plain ``press`` event is no longer
+    subscribed to: it fires on every press, even when the operator is
+    starting a long press, so acting on it would race the long_press
+    action.
+    """
     path = _BLUEPRINT_DIR / "button_scene.yaml"
     assert path.exists(), "button_scene.yaml must be shipped"
     text = path.read_text(encoding="utf-8")
-    assert 'to: "press"' in text
+    assert 'to: "single_press"' in text
     assert 'to: "long_press"' in text
     assert "scene.turn_on" in text
     assert 'to: "release"' not in text
+    assert 'to: "press"' not in text, (
+        "button_scene.yaml must not trigger on the raw `press` event — "
+        "the gateway now emits `single_press` on release of a short tap. "
+        "Acting on `press` would race the long_press action."
+    )
     assert "cover." not in text
 
 
