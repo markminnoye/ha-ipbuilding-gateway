@@ -1,11 +1,12 @@
 """Device automation triggers for IPBuilding physical buttons.
 
-Surfaces three native triggers in the Home Assistant automation editor
+Surfaces four native triggers in the Home Assistant automation editor
 for every IP1100PoE button device:
 
-- "Button pressed" (short tap)
+- "Button pressed" (raw press edge)
+- "Single pressed" (the gesture - short tap, fired on release)
 - "Long pressed" (held past the per-button threshold)
-- "Released" (let go — useful for direction-flip blueprints)
+- "Released" (raw release edge - useful for direction-flip blueprints)
 
 Each trigger is backed by the matching bus event that
 :class:`button.IPBuildingEventButton` fires, filtered to the button's
@@ -28,21 +29,25 @@ from homeassistant.helpers.typing import ConfigType
 from .const import DOMAIN
 
 TRIGGER_TYPE_PRESSED = "pressed"
+TRIGGER_TYPE_SINGLE_PRESSED = "single_pressed"
 TRIGGER_TYPE_LONG_PRESSED = "long_pressed"
 TRIGGER_TYPE_RELEASED = "released"
 TRIGGER_TYPES = {
     TRIGGER_TYPE_PRESSED,
+    TRIGGER_TYPE_SINGLE_PRESSED,
     TRIGGER_TYPE_LONG_PRESSED,
     TRIGGER_TYPE_RELEASED,
 }
 
 #: HA bus events fired by IPBuildingEventButton for each action.
 EVENT_BUTTON_PRESSED = f"{DOMAIN}.button_pressed"
+EVENT_BUTTON_SINGLE_PRESSED = f"{DOMAIN}.button_single_pressed"
 EVENT_BUTTON_LONG_PRESSED = f"{DOMAIN}.button_long_pressed"
 EVENT_BUTTON_RELEASED = f"{DOMAIN}.button_released"
 
 _TRIGGER_TYPE_TO_EVENT: dict[str, str] = {
     TRIGGER_TYPE_PRESSED: EVENT_BUTTON_PRESSED,
+    TRIGGER_TYPE_SINGLE_PRESSED: EVENT_BUTTON_SINGLE_PRESSED,
     TRIGGER_TYPE_LONG_PRESSED: EVENT_BUTTON_LONG_PRESSED,
     TRIGGER_TYPE_RELEASED: EVENT_BUTTON_RELEASED,
 }

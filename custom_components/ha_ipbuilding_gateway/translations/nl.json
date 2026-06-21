@@ -46,6 +46,7 @@
   "device_automation": {
     "trigger_type": {
       "pressed": "Knop ingedrukt",
+      "single_pressed": "Kort ingedrukt",
       "long_pressed": "Lang ingedrukt",
       "released": "Losgelaten"
     }

@@ -59,6 +59,39 @@ def test_event_data_is_built_from_hardware_id():
     )
 
 
+def test_single_pressed_trigger_is_registered():
+    """Fase 1 adds a ``single_pressed`` device trigger backed by the
+    ``button_single_pressed`` bus event. The trigger must appear in both
+    ``TRIGGER_TYPES`` and ``_TRIGGER_TYPE_TO_EVENT`` so the automation
+    editor surfaces it and the handler can resolve it."""
+    import re
+    type_pattern = re.compile(
+        r'TRIGGER_TYPE_SINGLE_PRESSED\s*=\s*"single_pressed"',
+    )
+    in_set_pattern = re.compile(
+        r'TRIGGER_TYPES\s*=\s*\{[^}]*TRIGGER_TYPE_SINGLE_PRESSED[^}]*\}',
+        re.DOTALL,
+    )
+    event_pattern = re.compile(
+        r'EVENT_BUTTON_SINGLE_PRESSED\s*=\s*f"\{DOMAIN\}\.button_single_pressed"',
+    )
+    mapping_pattern = re.compile(
+        r'TRIGGER_TYPE_SINGLE_PRESSED\s*:\s*EVENT_BUTTON_SINGLE_PRESSED',
+    )
+    assert type_pattern.search(_TRIGGER_SOURCE) is not None, (
+        "device_trigger.py must declare TRIGGER_TYPE_SINGLE_PRESSED = 'single_pressed'."
+    )
+    assert in_set_pattern.search(_TRIGGER_SOURCE) is not None, (
+        "device_trigger.py TRIGGER_TYPES must include TRIGGER_TYPE_SINGLE_PRESSED."
+    )
+    assert event_pattern.search(_TRIGGER_SOURCE) is not None, (
+        "device_trigger.py must declare EVENT_BUTTON_SINGLE_PRESSED = f'{DOMAIN}.button_single_pressed'."
+    )
+    assert mapping_pattern.search(_TRIGGER_SOURCE) is not None, (
+        "device_trigger.py _TRIGGER_TYPE_TO_EVENT must map TRIGGER_TYPE_SINGLE_PRESSED to EVENT_BUTTON_SINGLE_PRESSED."
+    )
+
+
 # --- regex helpers -------------------------------------------------------
 
 

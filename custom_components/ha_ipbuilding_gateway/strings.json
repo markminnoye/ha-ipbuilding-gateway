@@ -46,6 +46,7 @@
   "device_automation": {
     "trigger_type": {
       "pressed": "Button pressed",
+      "single_pressed": "Single pressed",
       "long_pressed": "Long pressed",
       "released": "Released"
     }
