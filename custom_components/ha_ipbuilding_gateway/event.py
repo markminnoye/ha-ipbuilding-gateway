@@ -37,16 +37,31 @@ log = logging.getLogger(__name__)
 # Event types exposed on the EventEntity. ``press`` is a fresh press, ``long_press``
 # fires when the gateway threshold is reached while the button is still held, and
 # ``release`` fires when the button is let go. ``release`` arrives even on short
-# presses so blueprints can use it for direction-flip logic.
-_BUTTON_EVENT_TYPES = ["press", "long_press", "release"]
+# presses so blueprints can use it for direction-flip logic. ``single_press``
+# fires on release of a short tap (below the long-press threshold); the gateway
+# keeps ``press`` and ``release`` as the always-present raw edges so dim/cover
+# blueprints can still key on them.
+_BUTTON_EVENT_TYPES = ["press", "single_press", "long_press", "release"]
 
 # Map action -> bus event suffix. Keep the legacy ``button_pressed`` name for
 # backward compatibility with automations written against earlier companion
 # versions.
 _ACTION_TO_BUS_EVENT: dict[str, str] = {
     "press": "button_pressed",
+    "single_press": "button_single_pressed",
     "long_press": "button_long_pressed",
     "release": "button_released",
+}
+
+# Map our friendly wire actions to the emerging HA/Matter standard button
+# event types (architecture discussion #1377). Exposed in event_data as
+# ``standard_event_type`` so automations can be written against the standard
+# without the gateway needing to know about Matter.
+_STANDARD_EVENT_TYPE: dict[str, str] = {
+    "press": "press_start",
+    "single_press": "press_end",
+    "long_press": "long_press_start",
+    "release": "long_press_end",
 }
 
 
@@ -55,10 +70,13 @@ class IPBuildingEventButton(EventEntity):
 
     Fires the matching bus event for every action:
     - ``ha_ipbuilding_gateway.button_pressed``
+    - ``ha_ipbuilding_gateway.button_single_pressed``
     - ``ha_ipbuilding_gateway.button_long_pressed``
     - ``ha_ipbuilding_gateway.button_released``
 
-    All three carry ``{"hardware_id": "<id>", "action": "<press|long_press|release>"}``.
+    All four carry ``{"hardware_id": "<id>", "action": "<press|single_press|long_press|release>"}``
+    plus ``standard_event_type`` (the HA/Matter standard name) when one is
+    known for the action.
     """
 
     _attr_has_entity_name = True
@@ -115,6 +133,9 @@ class IPBuildingEventButton(EventEntity):
                 "hardware_id": self._hardware_id,
                 "action": action,
             }
+            standard = _STANDARD_EVENT_TYPE.get(action)
+            if standard is not None:
+                event_data["standard_event_type"] = standard
             self._trigger_event(action, event_data)
             self.async_write_ha_state()
             bus_suffix = _ACTION_TO_BUS_EVENT.get(action)
