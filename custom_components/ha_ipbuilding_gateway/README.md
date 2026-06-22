@@ -154,7 +154,8 @@ are copied (or upgraded) into your HA config folder
 
 #### `button_dim` (native)
 
-- Short press → toggle the light.
+- Short press → `light.toggle` → native `TOGGLE` (`T<ch>991000`): flips
+  between off and the module's own last-level memory.
 - Long press → `dim_start`; the IP0300PoE ramps and auto-reverses direction
   on each successive hold (no helper, no HA-side loop).
 - Release → `dim_stop`; the dimmer reports the level reached.

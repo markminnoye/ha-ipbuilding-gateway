@@ -30,6 +30,9 @@ anders meldt.
 - **`button_dim` v8** gebruikt de nieuwe services i.p.v. de oude `repeat` + `brightness_step_pct` + `direction_helper` + endpoint-trigger logica. Korte druk → `light.toggle`, vasthouden → `dim_start`, loslaten na hold → `dim_stop`. De `direction_helper` / `dim_step_pct` / `dim_interval_ms` / `dim_boundary_pct` inputs zijn verwijderd.
 - **`button_dim_stepwise` blueprint (alternatief)** — de oude HA-gestuurde, stapsgewijze dim-loop (met `input_boolean` richting-helper) blijft beschikbaar als apart alternatief voor wie de native ramp niet wil. Native `button_dim` blijft de aanbevolen keuze.
 
+### Changed
+- **Dimmer-`light.toggle` gebruikt nu het native `TOGGLE`-commando** (`T<ch>991000`) i.p.v. `DIM <laatste>` / `DIM 0`. De light-entity overschrijft `async_toggle`: een korte druk (en elke `light.toggle`) schakelt via het eigen laatst-niveau-geheugen van de IP0300PoE — robuust ook als HA's gecachte helderheid verouderd is (bv. na een peer-knopdruk die de gateway niet zag). Relays en geparametriseerde toggles vallen terug op het standaardgedrag.
+
 ## [1.6.0] - 2026-06-22
 
 ### Removed

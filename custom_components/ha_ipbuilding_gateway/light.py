@@ -134,6 +134,22 @@ class IPBuildingLight(LightEntity):
             return
         await self._coordinator.async_send_command(self._entity_id, "OFF")
 
+    async def async_toggle(self, **kwargs: Any) -> None:
+        """Toggle the light.
+
+        Dimmer channels have a native wire toggle (``T<ch>991000``) that flips
+        between off and the module's *own* last-level memory — matching the
+        physical IPBuilding wall-button (short press). Routing a plain toggle
+        through it, instead of HA's turn_off/turn_on → DIM, restores the exact
+        last level even when HA's cached brightness is stale (e.g. after a peer
+        button press the gateway never saw). A parametrised toggle (e.g. with a
+        brightness) and relay channels fall back to the default on/off toggle.
+        """
+        if self._is_dimmer and not kwargs:
+            await self._coordinator.async_send_command(self._entity_id, "TOGGLE")
+            return
+        await super().async_toggle(**kwargs)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

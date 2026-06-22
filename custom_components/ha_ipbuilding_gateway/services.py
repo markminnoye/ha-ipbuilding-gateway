@@ -14,13 +14,11 @@ Both services use the standard HA ``target:`` selector (a ``light.`` entity).
 The companion resolves the HA entity_id to the gateway device_id through the
 entity registry so the action reaches the right IP0300PoE channel.
 
-The ``light.toggle`` action on a companion dimmer entity is intentionally
-left on the standard HA ``light`` platform — there is no native gateway
-``TOGGLE`` routing from the light platform; it dispatches ``DIM 0`` / a
-non-zero level depending on the current state. Operators that want the
-single-wire ``T<ch>991000`` toggle (matching IPBox button-press semantics)
-can wire a service call themselves, but the blueprint path uses the
-``single_press → light.toggle`` flow for free.
+There is no separate ``toggle`` service: the light entity overrides
+``async_toggle`` so a plain ``light.toggle`` on a dimmer channel dispatches the
+gateway ``TOGGLE`` action (the native ``T<ch>991000`` frame, using the module's
+last-level memory). The ``single_press → light.toggle`` blueprint flow therefore
+already gets native toggle semantics for free.
 """
 
 from __future__ import annotations
