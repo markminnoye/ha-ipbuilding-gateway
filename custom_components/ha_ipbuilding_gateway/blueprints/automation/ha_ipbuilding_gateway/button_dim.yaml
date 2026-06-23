@@ -1,12 +1,18 @@
 blueprint:
   name: IPBuilding wandknop — dimmen
   description: >
-    **Blueprint-versie: 8.** Kort indrukken = toggle · vasthouden =
-    native hold-to-dim ramp (gateway + IP0300PoE regelen de richting
-    zelf) · loslaten = ramp stoppen.
-    Wil je in plaats daarvan HA-gestuurd, stapsgewijs dimmen (met een
-    richting-helper)? Gebruik `button_dim_stepwise` (alternatief).
-    Voor gewone aan/uit/scene: `button_standard`.
+    **✓ Aanbevolen voor IP0300PoE dimmers.** Kort indrukken = toggle ·
+    vasthouden = native hold-to-dim ramp (gateway + IP0300PoE regelen
+    de richting zelf) · loslaten = ramp stoppen. **Geen helper nodig,
+    geen blueprint-state** — de dimmer zelf houdt de richting bij.
+
+    **Blueprint-versie: 8.** Vereist gateway add-on vanaf
+    `feature/dimmer-downstream-td` (volgende release: `1.1.0`).
+
+    Alleen als je een dimmer zonder native hold-to-dim aanstuurt of
+    zelf de dimsnelheid/-stap in HA wilt regelen, gebruik dan
+    `button_dim_stepwise` (⚠️ experimenteel, helper vereist). Voor
+    gewone aan/uit/scene: `button_standard`.
   domain: automation
   source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_dim.yaml
 

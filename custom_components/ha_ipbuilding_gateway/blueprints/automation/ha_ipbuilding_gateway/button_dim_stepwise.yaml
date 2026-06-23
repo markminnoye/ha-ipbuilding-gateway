@@ -1,15 +1,24 @@
 blueprint:
-  name: IPBuilding wandknop — dimmen (HA-stapsgewijs, alternatief)
+  name: ⚠️ [experimenteel] IPBuilding wandknop — dimmen (HA-stapsgewijs, alternatief)
   description: >
-    **Blueprint-versie: 1.** **Alternatief voor `button_dim`.** HA-gestuurd, stapsgewijs dimmen
-    voor een IPBuilding IP1100PoE wandknop. Gebruik dit alleen als je
-    de **native** `button_dim` (gateway + IP0300PoE regelen de ramp
-    zelf) niet wilt — bv. als je de dimsnelheid/-stap in HA wilt regelen
-    of een dimmer zonder native hold-to-dim aanstuurt.
+    **⚠️ Experimenteel.** Kies bij voorkeur `button_dim` (native,
+    aanbevolen) — die gebruikt `dim_start`/`dim_stop` op de gateway en
+    heeft **geen helper nodig**. Deze stapsgewijze variant bestaat
+    alleen nog voor dimmers die geen native hold-to-dim ondersteunen:
+    je moet dan zelf een `input_boolean` helper aanmaken
+    (Instellingen → Apparaten & services → Helpers → + Helper aanmaken
+    → Toggle) en die als `direction_helper` kiezen. In Home Assistant
+    2026.3+ kan de helper-create-dialog een
+    `required key not provided @ data['name']`-fout geven als je het
+    icoonveld interactief gebruikt vóór de submit — maak de helper
+    dan eerst aan zonder icoon en stel die later in via de bewerk-knop.
+
+    **Blueprint-versie: 1.** HA-gestuurd, stapsgewijs dimmen voor een
+    IPBuilding IP1100PoE wandknop.
 
     Verschil met `button_dim` (native):
       - native: één `dim_start`/`dim_stop` per hold; de module rampt en
-        keert zelf om.
+        keert zelf om. Geen helper.
       - dit (stapsgewijs): HA stuurt herhaald `light.turn_on` met een
         stap-% en houdt de richting bij in een `input_boolean` helper.
         Meer busverkeer en een extra helper nodig.
