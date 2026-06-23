@@ -25,19 +25,28 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-06-23
+
 ### Added
-- **`ha_ipbuilding_gateway.dim_start` en `ha_ipbuilding_gateway.dim_stop` services** (entity-targeted, alleen `light.`). Starten/stoppen de native hold-to-dim ramp op een IP0300PoE-kanaal via de gateway-acties `DIM_START` / `DIM_STOP`. De IP0300PoE dimt zelf en draait de richting automatisch om bij elke volgende hold — geen `repeat`-lus, geen helper, geen step-configuratie in HA meer. Vereist gateway add-on vanaf de branch `feature/dimmer-downstream-td` (volgende release: `1.1.0`).
-- **`button_dim` v8** gebruikt de nieuwe services i.p.v. de oude `repeat` + `brightness_step_pct` + `direction_helper` + endpoint-trigger logica. Korte druk → `light.toggle`, vasthouden → `dim_start`, loslaten na hold → `dim_stop`. De `direction_helper` / `dim_step_pct` / `dim_interval_ms` / `dim_boundary_pct` inputs zijn verwijderd.
-- **`button_dim_stepwise` blueprint (alternatief)** — de oude HA-gestuurde, stapsgewijze dim-loop (met `input_boolean` richting-helper) blijft beschikbaar als apart alternatief voor wie de native ramp niet wil. Native `button_dim` blijft de aanbevolen keuze.
 - **`button_standard` v9 (universele 3-slot blueprint)** — derde actie-slot `Loslaten` toegevoegd (vuurt alleen op release ná een lange druk). Secties heten nu **Indrukken / Vasthouden / Loslaten**, waarbij Vasthouden en Loslaten optioneel zijn. De blueprint kan nu ook een dimmer volledig configureren (`light.toggle` / `dim_start` / `dim_stop`) zonder dat een aparte `button_dim`-blueprint nodig is — die blijft bestaan als preset. Blueprint-naam gewijzigd naar **"IPBuilding wandknop"**. `mode:` van `single` naar `queued` (twee triggers per vasthouden moeten in volgorde lopen). Bestaande instanties blijven werken: `release_action` default is `[]` en de nieuwe trigger is gescopet met `from: "long_press"`.
 
 ### Changed
-- **Dimmer-`light.toggle` gebruikt nu het native `TOGGLE`-commando** (`T<ch>991000`) i.p.v. `DIM <laatste>` / `DIM 0`. De light-entity overschrijft `async_toggle`: een korte druk (en elke `light.toggle`) schakelt via het eigen laatst-niveau-geheugen van de IP0300PoE — robuust ook als HA's gecachte helderheid verouderd is (bv. na een peer-knopdruk die de gateway niet zag). Relays en geparametriseerde toggles vallen terug op het standaardgedrag.
 - **Blueprint-teksten gereviseerd** — `button_standard` v9, `button_dim` v8 en `button_dim_stepwise` v1 zijn inhoudelijk op elkaar afgestemd. De `Knop` en `Lamp` input-beschrijvingen zijn geüniformeerd; de "Geen helper nodig"-zin in `button_dim` is weg; de Matter-patroon-verwijzing in de Loslaten-beschrijving is ingekort. Geen gedragswijziging.
 - **Versie-header onderaan** — vanaf 1.7.1 staat de `# ipbuilding_blueprint_version: N`-regel onderaan de blueprint-file in kleine letters, niet meer bovenaan. De sync in `blueprints.py` scant nu de hele file. De `**Blueprint-versie: N.**`-marker in de description (operator-zichtbaar in HA) blijft ongewijzigd.
+- **Dim-blueprint beschrijvingen verduidelijkt** — `button_dim` is expliciet gemarkeerd als aanbevolen native variant; `button_dim_stepwise` als experimenteel alternatief met `input_boolean`-helper (HA 2026.3 helper-create caveat van toepassing).
 
 ### Breaking
 - **`dim_button.yaml` is verwijderd uit de companion.** De deprecation-stub die sinds 0.5.0 in het package zat is niet meer meegeleverd. Bestaande automations die deze blueprint referencen stoppen met werken zodra de stub uit `config/blueprints/automation/ha_ipbuilding_gateway/` is verwijderd. Migreer door een nieuwe automatisering te maken vanuit `button_dim` (of `button_dim_stepwise` als je de HA-stapsgewijze variant wilt) en de oude uit te zetten. Vóór deze release bestond de stub alleen nog als back-compat voor installaties die in de 0.5.0-tijd zijn begonnen.
+
+## [1.7.0] - 2026-06-23
+
+### Added
+- **`ha_ipbuilding_gateway.dim_start` en `ha_ipbuilding_gateway.dim_stop` services** (entity-targeted, alleen `light.`). Starten/stoppen de native hold-to-dim ramp op een IP0300PoE-kanaal via de gateway-acties `DIM_START` / `DIM_STOP`. De IP0300PoE dimt zelf en draait de richting automatisch om bij elke volgende hold — geen `repeat`-lus, geen helper, geen step-configuratie in HA meer. Vereist gateway add-on met `DIM_START`/`DIM_STOP`-ondersteuning (branch `feature/dimmer-downstream-td`, gateway ≥ **1.1.0**).
+- **`button_dim` v8** gebruikt de nieuwe services i.p.v. de oude `repeat` + `brightness_step_pct` + `direction_helper` + endpoint-trigger logica. Korte druk → `light.toggle`, vasthouden → `dim_start`, loslaten na hold → `dim_stop`. De `direction_helper` / `dim_step_pct` / `dim_interval_ms` / `dim_boundary_pct` inputs zijn verwijderd.
+- **`button_dim_stepwise` blueprint (alternatief)** — de oude HA-gestuurde, stapsgewijze dim-loop (met `input_boolean` richting-helper) blijft beschikbaar als apart alternatief voor wie de native ramp niet wil. Native `button_dim` blijft de aanbevolen keuze.
+
+### Changed
+- **Dimmer-`light.toggle` gebruikt nu het native `TOGGLE`-commando** (`T<ch>991000`) i.p.v. `DIM <laatste>` / `DIM 0`. De light-entity overschrijft `async_toggle`: een korte druk (en elke `light.toggle`) schakelt via het eigen laatst-niveau-geheugen van de IP0300PoE — robuust ook als HA's gecachte helderheid verouderd is (bv. na een peer-knopdruk die de gateway niet zag). Relays en geparametriseerde toggles vallen terug op het standaardgedrag.
 
 ## [1.6.0] - 2026-06-22
 
@@ -563,7 +572,19 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 - WebSocket-coordinator met automatische reconnect
 - Nederlandse en Engelse vertalingen
 
-[Unreleased]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.0...v1.7.1
+[1.7.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.6.0...v1.7.0
+[1.6.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.3.0...v1.4.1
+[1.3.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/releases/tag/v1.0.0
+[0.4.3]: https://github.com/markminnoye/ha-ipbuilding-gateway/releases/tag/v0.4.3
 [0.3.0]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.0...v0.3.0
 [0.2.2]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.2.0...v0.2.1
