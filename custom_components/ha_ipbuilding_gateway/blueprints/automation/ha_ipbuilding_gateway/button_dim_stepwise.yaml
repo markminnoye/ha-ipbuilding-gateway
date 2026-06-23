@@ -1,24 +1,23 @@
-# ipbuilding_blueprint_version: 1
 blueprint:
   name: IPBuilding wandknop — dimmen (HA-stapsgewijs, alternatief)
   description: >
-    **Blueprint-versie: 1.** **Alternatief voor `button_dim`.** HA-gestuurd, stapsgewijs dimmen voor
-    een IPBuilding IP1100PoE wandknop. Gebruik dit alleen als je de
-    **native** `button_dim` (gateway + IP0300PoE regelen de ramp zelf) niet
-    wilt — bv. als je de dimsnelheid/-stap in HA wilt regelen of een
-    dimmer zonder native hold-to-dim aanstuurt.
+    **Blueprint-versie: 1.** **Alternatief voor `button_dim`.** HA-gestuurd, stapsgewijs dimmen
+    voor een IPBuilding IP1100PoE wandknop. Gebruik dit alleen als je
+    de **native** `button_dim` (gateway + IP0300PoE regelen de ramp
+    zelf) niet wilt — bv. als je de dimsnelheid/-stap in HA wilt regelen
+    of een dimmer zonder native hold-to-dim aanstuurt.
 
     Verschil met `button_dim` (native):
       - native: één `dim_start`/`dim_stop` per hold; de module rampt en
-        keert zelf om. Geen helper.
+        keert zelf om.
       - dit (stapsgewijs): HA stuurt herhaald `light.turn_on` met een
         stap-% en houdt de richting bij in een `input_boolean` helper.
         Meer busverkeer en een extra helper nodig.
 
     Gedrag:
       - Korte druk → toggle (geen richtingswissel).
-      - Vasthouden (long_press) → dim-loop. De eerste hold zet de lamp op
-        1 % als die uit stond, daarna doordimmen.
+      - Vasthouden (long_press) → dim-loop. De eerste hold zet de lamp
+        op 1 % als die uit stond, daarna doordimmen.
       - Loslaten na een lange druk → richting-helper omdraaien.
       - Loslaten na een korte druk → geen wissel.
 
@@ -31,8 +30,8 @@ blueprint:
       name: Knop
       description: >
         De IPBuilding event-entity van de fysieke wandknop
-        (bv. `event.2f8185190000df`). De entity moet ingeschakeld zijn
-        in Instellingen → Apparaten & entiteiten.
+        (bv. `event.2f8185190000df`). De entity moet ingeschakeld
+        zijn in Instellingen → Apparaten & entiteiten.
       selector:
         entity:
           filter:
@@ -220,3 +219,5 @@ action:
           - action: input_boolean.toggle
             target:
               entity_id: !input direction_helper
+
+# ipbuilding_blueprint_version: 1

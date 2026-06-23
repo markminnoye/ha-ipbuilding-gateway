@@ -37,13 +37,15 @@ _VERSION_HEADER_RE = re.compile(r"^\s*#\s*ipbuilding_blueprint_version:\s*(\d+)\
 
 
 def _read_blueprint_version(path: pathlib.Path) -> int | None:
-    """Return the version embedded in the first lines of the YAML."""
+    """Return the version embedded in a comment somewhere in the YAML.
+
+    The version marker may sit at the top of the file (legacy convention)
+    or at the bottom (new convention since companion 1.8.0). We scan the
+    whole file so either position works.
+    """
     try:
         with path.open("r", encoding="utf-8") as handle:
-            for _ in range(20):
-                line = handle.readline()
-                if not line:
-                    break
+            for line in handle:
                 match = _VERSION_HEADER_RE.match(line)
                 if match:
                     return int(match.group(1))

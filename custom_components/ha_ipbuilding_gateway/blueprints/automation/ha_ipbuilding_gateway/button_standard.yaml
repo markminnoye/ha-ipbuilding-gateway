@@ -1,11 +1,11 @@
-# ipbuilding_blueprint_version: 9
 blueprint:
   name: IPBuilding wandknop
   description: >
-    **Blueprint-versie: 9.** Universele wandknop met drie actie-slots:
+    **Blueprint-versie: 9.** Wandknop met drie actie-slots:
     Indrukken (korte tik), Vasthouden (long press) en Loslaten
-    (release ná een lange druk). Alle drie de slots zijn optioneel;
-    laat ze leeg om alleen korte druk te gebruiken.
+    (release ná een lange druk). Vasthouden en Loslaten zijn
+    optioneel — laat ze leeg als je alleen een korte druk wilt
+    gebruiken.
 
     Voor een kant-en-klare dimmer-configuratie (toggle / dim_start /
     dim_stop) kun je deze blueprint vullen met de native services
@@ -23,7 +23,10 @@ blueprint:
       input:
         button_entity:
           name: Knop
-          description: IPBuilding event-entity van de wandknop.
+          description: >
+            De IPBuilding event-entity van de fysieke wandknop
+            (bv. `event.2f8185190000df`). De entity moet ingeschakeld
+            zijn in Instellingen → Apparaten & entiteiten.
           selector:
             entity:
               filter:
@@ -43,7 +46,7 @@ blueprint:
 
     long_press_section:
       name: Vasthouden
-      icon: mdi:gesture-two-tap-button
+      icon: mdi:gesture-tap-hold
       input:
         long_press_action:
           name: Actie bij vasthouden
@@ -54,14 +57,13 @@ blueprint:
 
     release_section:
       name: Loslaten
-      icon: mdi:gesture-tap-hold
+      icon: mdi:gesture-tap
       input:
         release_action:
           name: Actie bij loslaten (ná vasthouden)
           description: >
             Actie die alleen vuurt op de release die een lange druk
-            afsluit (Matter long_release patroon). Laat leeg als je
-            geen loslaat-actie wilt.
+            afsluit. Laat leeg als je geen loslaat-actie wilt.
           default: []
           selector:
             action:
@@ -95,8 +97,7 @@ trigger:
     entity_id: !input button_entity
     # Only a release that ends a hold (long_press → release) fires here.
     # A short-tap release (single_press → release) does NOT match, so the
-    # trailing release of a brief tap cannot reach the release branch
-    # (Matter long_release pattern).
+    # trailing release of a brief tap cannot reach the release branch.
     attribute: event_type
     from: "long_press"
     to: "release"
@@ -113,3 +114,5 @@ action:
             id: release
         sequence: !input release_action
     default: !input press_action
+
+# ipbuilding_blueprint_version: 9

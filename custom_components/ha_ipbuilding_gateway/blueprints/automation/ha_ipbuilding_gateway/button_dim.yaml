@@ -1,10 +1,9 @@
-# ipbuilding_blueprint_version: 8
 blueprint:
   name: IPBuilding wandknop — dimmen
   description: >
     **Blueprint-versie: 8.** Kort indrukken = toggle · vasthouden =
     native hold-to-dim ramp (gateway + IP0300PoE regelen de richting
-    zelf) · loslaten = ramp stoppen. Geen helper nodig.
+    zelf) · loslaten = ramp stoppen.
     Wil je in plaats daarvan HA-gestuurd, stapsgewijs dimmen (met een
     richting-helper)? Gebruik `button_dim_stepwise` (alternatief).
     Voor gewone aan/uit/scene: `button_standard`.
@@ -14,7 +13,10 @@ blueprint:
   input:
     button_entity:
       name: Knop
-      description: IPBuilding event-entity van de wandknop.
+      description: >
+        De IPBuilding event-entity van de fysieke wandknop
+        (bv. `event.2f8185190000df`). De entity moet ingeschakeld
+        zijn in Instellingen → Apparaten & entiteiten.
       selector:
         entity:
           filter:
@@ -95,3 +97,5 @@ action:
           - action: ha_ipbuilding_gateway.dim_stop
             target:
               entity_id: !input target_light
+
+# ipbuilding_blueprint_version: 8

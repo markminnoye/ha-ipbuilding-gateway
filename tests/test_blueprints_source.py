@@ -25,7 +25,10 @@ _BLUEPRINT_DIR = (
     / "ha_ipbuilding_gateway"
 )
 
-_VERSION_HEADER_RE = re.compile(r"^\s*#\s*ipbuilding_blueprint_version:\s*(\d+)\s*$")
+_VERSION_HEADER_RE = re.compile(
+    r"^\s*#\s*ipbuilding_blueprint_version:\s*(\d+)\s*$",
+    re.MULTILINE,
+)
 
 
 def _shipped_blueprints() -> list[Path]:
@@ -33,78 +36,64 @@ def _shipped_blueprints() -> list[Path]:
 
 
 def test_every_shipped_blueprint_declares_a_version() -> None:
-    """Each YAML in the package must carry a ``ipbuilding_blueprint_version`` header.
+    """Each YAML in the package must carry a ``ipbuilding_blueprint_version`` comment.
 
     Without a version the upgrade sync cannot distinguish a new release
     from an identical file and would silently skip upgrades.
 
-    The legacy ``dim_button.yaml`` shipped before versioning was introduced
-    is the exception: it stays in the package as a backwards-compatible
-    stub until the ``button_dim.yaml`` rollout finishes. Once the stub is
-    in place (i.e. the file contains ``[VEROUDERD]``) this exception
-    disappears automatically.
+    Since companion 1.8.0 the version header may sit anywhere in the
+    file (legacy convention kept it on line 1; the new convention puts
+    it at the bottom as a small lowercase comment). The companion's
+    ``blueprints.py`` syncs by scanning the whole file, so this test
+    does the same.
     """
     blueprints = _shipped_blueprints()
     assert blueprints, "expected at least one packaged blueprint"
     for path in blueprints:
         text = path.read_text(encoding="utf-8")
-        head_lines = text.splitlines()[:20]
-        match = next(
-            (_VERSION_HEADER_RE.match(line) for line in head_lines if line.startswith("#")),
-            None,
+        match = _VERSION_HEADER_RE.search(text)
+        assert match is not None, (
+            f"{path.name} is missing the "
+            "# ipbuilding_blueprint_version: N header"
         )
-        if match is None:
-            is_deprecation_stub = (
-                "[VEROUDERD]" in text or "deprecated" in text.lower()
-            )
-            is_legacy_dim = (
-                path.name == "dim_button.yaml"
-                and not is_deprecation_stub
-            )
-            assert is_deprecation_stub or is_legacy_dim, (
-                f"{path.name} is missing the "
-                "# ipbuilding_blueprint_version: N header"
-            )
-        else:
-            assert int(match.group(1)) >= 1, (
-                f"{path.name} declares an invalid version: {match.group(1)!r}"
-            )
-            # The operator-facing description must echo the same version so
-            # the version is visible in the HA Blueprints UI. Operators
-            # otherwise have no way to tell whether the blueprint on their
-            # system is older than the one in the repo.
-            header_version = int(match.group(1))
-            description_match = re.search(
-                r"[Bb]lueprint-versie:\s*(\d+)", text
-            )
-            assert description_match, (
-                f"{path.name} is missing the operator-visible "
-                "`**Blueprint-versie: N.**` marker in its description. "
-                "The version header on line 1 is for the sync; the "
-                "description marker is what the operator sees in HA."
-            )
-            assert (
-                int(description_match.group(1)) == header_version
-            ), (
-                f"{path.name}: version in description "
-                f"({description_match.group(1)}) does not match the "
-                f"sync header ({header_version}). Keep them in sync."
-            )
+        assert int(match.group(1)) >= 1, (
+            f"{path.name} declares an invalid version: {match.group(1)!r}"
+        )
+        # The operator-facing description must echo the same version so
+        # the version is visible in the HA Blueprints UI. Operators
+        # otherwise have no way to tell whether the blueprint on their
+        # system is older than the one in the repo.
+        header_version = int(match.group(1))
+        description_match = re.search(
+            r"[Bb]lueprint-versie:\s*(\d+)", text
+        )
+        assert description_match, (
+            f"{path.name} is missing the operator-visible "
+            "`**Blueprint-versie: N.**` marker in its description. "
+            "The version header in the comment is for the sync; the "
+            "description marker is what the operator sees in HA."
+        )
+        assert (
+            int(description_match.group(1)) == header_version
+        ), (
+            f"{path.name}: version in description "
+            f"({description_match.group(1)}) does not match the "
+            f"sync header ({header_version}). Keep them in sync."
+        )
 
 
 def test_dim_blueprint_does_not_set_invalid_max() -> None:
     """The dim blueprint must not carry ``max: 1`` with ``mode: restart``.
 
     Home Assistant's automation schema rejects ``max < 2`` and ``max`` is
-    only meaningful with ``queued`` / ``parallel`` mode. The previous
-    dim_button.yaml shipped both, producing
+    only meaningful with ``queued`` / ``parallel`` mode. Historical
+    context: the legacy ``dim_button.yaml`` stub (now removed) shipped
+    with both ``max: 1`` and ``mode: restart``, producing
     ``Message malformed: value must be at least 2 @ data['max']`` when
     operators saved a derived automation.
     """
     dim = _BLUEPRINT_DIR / "button_dim.yaml"
     if not dim.exists():
-        # Older branches may still call it dim_button.yaml; that case is
-        # covered by the deprecation stub and is intentionally exempt.
         return
     text = dim.read_text(encoding="utf-8")
     assert "mode: restart" in text
@@ -434,7 +423,6 @@ def test_button_blueprints_use_event_type_attribute_on_triggers() -> None:
     targets = {
         "button_standard.yaml": ["press", "release"],
         "button_dim.yaml": ["press", "long_press", "release"],
-        "dim_button.yaml": ["press"],
     }
     for filename, event_types in targets.items():
         path = _BLUEPRINT_DIR / filename
@@ -594,8 +582,6 @@ def test_select_option_values_are_strings() -> None:
     )
     bad: list[str] = []
     for path in _shipped_blueprints():
-        if path.name == "dim_button.yaml":
-            continue
         text = path.read_text(encoding="utf-8")
         for match in option_re.finditer(text):
             raw_value = match.group("value").strip()
