@@ -25,11 +25,6 @@ anders meldt.
 
 ## [Unreleased]
 
-## [1.7.3] - 2026-07-13
-
-### Changed
-- **Maintenance release:** version bump only (no functional changes).
-
 ## [1.7.2] - 2026-06-23
 
 ### Added
