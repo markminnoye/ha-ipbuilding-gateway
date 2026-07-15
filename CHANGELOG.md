@@ -25,6 +25,15 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-07-15
+
+### Added
+- **Dubbele en driedubbele druk** — `double_press` / `triple_press` events,
+  device triggers (`double_pressed` / `triple_pressed`), en `count` in
+  event_data (gemapt naar HA-standaard `multi_press_end`).
+- Nieuw blueprint **`button_multi`** voor enkel/dubbel/driedubbel/lang.
+  Vereist gateway ≥ 1.6.0 en per knop `multi_press: true` in `devices.json`.
+
 ## [1.7.2] - 2026-06-23
 
 ### Added

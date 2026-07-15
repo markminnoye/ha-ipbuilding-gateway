@@ -40,8 +40,16 @@ log = logging.getLogger(__name__)
 # presses so blueprints can use it for direction-flip logic. ``single_press``
 # fires on release of a short tap (below the long-press threshold); the gateway
 # keeps ``press`` and ``release`` as the always-present raw edges so dim/cover
-# blueprints can still key on them.
-_BUTTON_EVENT_TYPES = ["press", "single_press", "long_press", "release"]
+# blueprints can still key on them. ``double_press`` / ``triple_press`` are
+# opt-in multi-click gestures (gateway ``multi_press: true``).
+_BUTTON_EVENT_TYPES = [
+    "press",
+    "single_press",
+    "double_press",
+    "triple_press",
+    "long_press",
+    "release",
+]
 
 # Map action -> bus event suffix. Keep the legacy ``button_pressed`` name for
 # backward compatibility with automations written against earlier companion
@@ -49,6 +57,8 @@ _BUTTON_EVENT_TYPES = ["press", "single_press", "long_press", "release"]
 _ACTION_TO_BUS_EVENT: dict[str, str] = {
     "press": "button_pressed",
     "single_press": "button_single_pressed",
+    "double_press": "button_double_pressed",
+    "triple_press": "button_triple_pressed",
     "long_press": "button_long_pressed",
     "release": "button_released",
 }
@@ -62,10 +72,13 @@ _ACTION_TO_BUS_EVENT: dict[str, str] = {
 # both short and long presses, so it has no single standard equivalent
 # (short → press_end, long → long_press_end). Tagging it as one would
 # mislabel the other case. Consumers wanting the standard semantics use the
-# gesture events (single_press → press_end, long_press → long_press_start).
+# gesture events (single_press → press_end, long_press → long_press_start,
+# double/triple_press → multi_press_end).
 _STANDARD_EVENT_TYPE: dict[str, str] = {
     "press": "press_start",
     "single_press": "press_end",
+    "double_press": "multi_press_end",
+    "triple_press": "multi_press_end",
     "long_press": "long_press_start",
 }
 
@@ -76,12 +89,15 @@ class IPBuildingEventButton(EventEntity):
     Fires the matching bus event for every action:
     - ``ha_ipbuilding_gateway.button_pressed``
     - ``ha_ipbuilding_gateway.button_single_pressed``
+    - ``ha_ipbuilding_gateway.button_double_pressed``
+    - ``ha_ipbuilding_gateway.button_triple_pressed``
     - ``ha_ipbuilding_gateway.button_long_pressed``
     - ``ha_ipbuilding_gateway.button_released``
 
-    All four carry ``{"hardware_id": "<id>", "action": "<press|single_press|long_press|release>"}``
-    plus ``standard_event_type`` (the HA/Matter standard name) when one is
-    known for the action.
+    Events carry ``{"hardware_id": "<id>", "action": "..."}`` plus
+    ``standard_event_type`` (the HA/Matter standard name) when one is
+    known for the action, and ``count`` when the gateway sent it
+    (multi-press frames).
     """
 
     _attr_has_entity_name = True
@@ -141,6 +157,9 @@ class IPBuildingEventButton(EventEntity):
             standard = _STANDARD_EVENT_TYPE.get(action)
             if standard is not None:
                 event_data["standard_event_type"] = standard
+            count = data.get("count")
+            if count is not None:
+                event_data["count"] = count
             self._trigger_event(action, event_data)
             self.async_write_ha_state()
             bus_suffix = _ACTION_TO_BUS_EVENT.get(action)

@@ -92,6 +92,41 @@ def test_single_pressed_trigger_is_registered():
     )
 
 
+def test_multi_press_trigger_types_registered():
+    """Phase 2 adds double_pressed / triple_pressed device triggers."""
+    import re
+
+    for name, trigger, bus in (
+        ("DOUBLE", "double_pressed", "button_double_pressed"),
+        ("TRIPLE", "triple_pressed", "button_triple_pressed"),
+    ):
+        type_pattern = re.compile(
+            rf'TRIGGER_TYPE_{name}_PRESSED\s*=\s*"{trigger}"',
+        )
+        in_set_pattern = re.compile(
+            rf'TRIGGER_TYPES\s*=\s*\{{[^}}]*TRIGGER_TYPE_{name}_PRESSED[^}}]*\}}',
+            re.DOTALL,
+        )
+        event_pattern = re.compile(
+            rf'EVENT_BUTTON_{name}_PRESSED\s*=\s*f"\{{DOMAIN\}}\.{bus}"',
+        )
+        mapping_pattern = re.compile(
+            rf'TRIGGER_TYPE_{name}_PRESSED\s*:\s*EVENT_BUTTON_{name}_PRESSED',
+        )
+        assert type_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"device_trigger.py must declare TRIGGER_TYPE_{name}_PRESSED."
+        )
+        assert in_set_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"TRIGGER_TYPES must include TRIGGER_TYPE_{name}_PRESSED."
+        )
+        assert event_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"device_trigger.py must declare EVENT_BUTTON_{name}_PRESSED."
+        )
+        assert mapping_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"_TRIGGER_TYPE_TO_EVENT must map TRIGGER_TYPE_{name}_PRESSED."
+        )
+
+
 # --- regex helpers -------------------------------------------------------
 
 

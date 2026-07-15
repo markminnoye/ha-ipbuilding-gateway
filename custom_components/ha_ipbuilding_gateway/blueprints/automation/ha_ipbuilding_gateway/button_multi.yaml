@@ -1,0 +1,79 @@
+# ipbuilding_blueprint_version: 1
+blueprint:
+  name: IPBuilding wandknop — enkel/dubbel/lang
+  description: >
+    **Blueprint-versie: 1.** Maps single, double, triple and long press of
+    an IPBuilding IP1100PoE wall button to separate action sequences.
+    Requires the button to have multi-press enabled in the gateway
+    (devices.json: `multi_press: true`). Note: enabling multi-press delays
+    the single-press action by the inter-click window (default 350 ms).
+    Leave any action empty to ignore that gesture.
+  domain: automation
+  source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_multi.yaml
+  input:
+    button_entity:
+      name: Knop
+      selector:
+        entity:
+          filter:
+            - domain: event
+              integration: ha_ipbuilding_gateway
+    single_action:
+      name: Actie bij enkele druk
+      default: []
+      selector:
+        action:
+    double_action:
+      name: Actie bij dubbele druk
+      default: []
+      selector:
+        action:
+    triple_action:
+      name: Actie bij driedubbele druk
+      default: []
+      selector:
+        action:
+    long_action:
+      name: Actie bij lange druk
+      default: []
+      selector:
+        action:
+
+mode: single
+
+trigger:
+  - platform: state
+    entity_id: !input button_entity
+    attribute: event_type
+    to: "single_press"
+    not_from: [unavailable, unknown]
+    id: single
+  - platform: state
+    entity_id: !input button_entity
+    attribute: event_type
+    to: "double_press"
+    not_from: [unavailable, unknown]
+    id: double
+  - platform: state
+    entity_id: !input button_entity
+    attribute: event_type
+    to: "triple_press"
+    not_from: [unavailable, unknown]
+    id: triple
+  - platform: state
+    entity_id: !input button_entity
+    attribute: event_type
+    to: "long_press"
+    not_from: [unavailable, unknown]
+    id: long
+
+action:
+  - choose:
+      - conditions: [{condition: trigger, id: single}]
+        sequence: !input single_action
+      - conditions: [{condition: trigger, id: double}]
+        sequence: !input double_action
+      - conditions: [{condition: trigger, id: triple}]
+        sequence: !input triple_action
+      - conditions: [{condition: trigger, id: long}]
+        sequence: !input long_action

@@ -133,7 +133,14 @@ def test_en_translations_contain_new_keys() -> None:
 
 def test_manifest_version_bumped() -> None:
     manifest = json.loads((_COMP / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.7.2"
+    assert manifest["version"] == "1.8.0"
+
+
+def test_changelog_has_1_8_0_entry() -> None:
+    text = (_REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [1.8.0]" in text
+    assert "double_press" in text
+    assert "button_multi" in text
 
 
 def test_changelog_has_1_7_2_entry() -> None:

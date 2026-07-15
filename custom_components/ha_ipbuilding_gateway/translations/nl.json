@@ -65,6 +65,8 @@
     "trigger_type": {
       "pressed": "Knop ingedrukt",
       "single_pressed": "Kort ingedrukt",
+      "double_pressed": "Dubbel ingedrukt",
+      "triple_pressed": "Driedubbel ingedrukt",
       "long_pressed": "Lang ingedrukt",
       "released": "Losgelaten"
     }
@@ -113,6 +115,8 @@
         "state": {
           "press": "Ingedrukt",
           "single_press": "Kort ingedrukt",
+          "double_press": "Dubbel ingedrukt",
+          "triple_press": "Driedubbel ingedrukt",
           "long_press": "Lang ingedrukt",
           "release": "Losgelaten"
         }

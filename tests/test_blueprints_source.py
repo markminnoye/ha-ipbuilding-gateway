@@ -364,6 +364,26 @@ def test_standard_blueprint_has_three_slots_with_release_after_long_press() -> N
     assert "!input release_action" in action_block
 
 
+def test_multi_blueprint_maps_single_double_triple_long() -> None:
+    """button_multi.yaml maps single/double/triple/long without timing logic."""
+    path = _BLUEPRINT_DIR / "button_multi.yaml"
+    assert path.exists(), "button_multi.yaml must be shipped"
+    text = path.read_text(encoding="utf-8")
+    assert "wait_for_trigger" not in text
+    for evt in ("single_press", "double_press", "triple_press", "long_press"):
+        assert f'to: "{evt}"' in text, (
+            f"button_multi.yaml must trigger on {evt}"
+        )
+    for inp in (
+        "single_action",
+        "double_action",
+        "triple_action",
+        "long_action",
+    ):
+        assert f"!input {inp}" in text
+        assert f"{inp}:" in text
+
+
 def test_standard_blueprint_uses_single_and_long_press_triggers() -> None:
     """button_standard.yaml must key on single_press and long_press triggers.
 
@@ -423,6 +443,12 @@ def test_button_blueprints_use_event_type_attribute_on_triggers() -> None:
     targets = {
         "button_standard.yaml": ["press", "release"],
         "button_dim.yaml": ["press", "long_press", "release"],
+        "button_multi.yaml": [
+            "single_press",
+            "double_press",
+            "triple_press",
+            "long_press",
+        ],
     }
     for filename, event_types in targets.items():
         path = _BLUEPRINT_DIR / filename
