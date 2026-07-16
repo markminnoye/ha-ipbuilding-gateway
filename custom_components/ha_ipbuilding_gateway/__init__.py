@@ -67,14 +67,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     bootstrap_done = hass.data[DOMAIN].get(f"{entry.entry_id}_bootstrap_done")
     if not bootstrap_done and not coordinator.devices_snapshot():
         hass.data[DOMAIN][f"{entry.entry_id}_bootstrap_done"] = True
-        # ``async_on_unload`` takes a *callable* to run on unload, not a Task —
-        # registering the Task itself made HA call it (``Task() ``) on unload and
-        # raise "'_asyncio.Task' object is not callable". Register the task's
-        # ``cancel`` so an in-flight bootstrap is cancelled cleanly on unload.
+        # ``async_on_unload`` callbacks are *called*; if they return a coroutine
+        # HA schedules it. ``Task.cancel`` returns ``True``/``False``, which is
+        # truthy and not a coroutine → TypeError ("got True"). Wrap so the
+        # unload callback returns None.
         bootstrap_task = hass.async_create_task(
             _bootstrap_devices(hass, entry.entry_id)
         )
-        entry.async_on_unload(bootstrap_task.cancel)
+
+        def _cancel_bootstrap() -> None:
+            bootstrap_task.cancel()
+
+        entry.async_on_unload(_cancel_bootstrap)
     # Reapply any room→area mapping the operator saved through the
     # options flow. Idempotent — ``apply_room_mappings`` never overwrites
     # a device area the operator assigned manually, and it catches new

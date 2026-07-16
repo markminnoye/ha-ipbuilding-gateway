@@ -92,6 +92,64 @@ def test_single_pressed_trigger_is_registered():
     )
 
 
+def test_multi_press_trigger_types_registered():
+    """Phase 2 adds double_pressed / triple_pressed device triggers."""
+    import re
+
+    for name, trigger, bus in (
+        ("DOUBLE", "double_pressed", "button_double_pressed"),
+        ("TRIPLE", "triple_pressed", "button_triple_pressed"),
+    ):
+        type_pattern = re.compile(
+            rf'TRIGGER_TYPE_{name}_PRESSED\s*=\s*"{trigger}"',
+        )
+        in_set_pattern = re.compile(
+            rf'TRIGGER_TYPES\s*=\s*\{{[^}}]*TRIGGER_TYPE_{name}_PRESSED[^}}]*\}}',
+            re.DOTALL,
+        )
+        event_pattern = re.compile(
+            rf'EVENT_BUTTON_{name}_PRESSED\s*=\s*f"\{{DOMAIN\}}\.{bus}"',
+        )
+        mapping_pattern = re.compile(
+            rf'TRIGGER_TYPE_{name}_PRESSED\s*:\s*EVENT_BUTTON_{name}_PRESSED',
+        )
+        assert type_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"device_trigger.py must declare TRIGGER_TYPE_{name}_PRESSED."
+        )
+        assert in_set_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"TRIGGER_TYPES must include TRIGGER_TYPE_{name}_PRESSED."
+        )
+        assert event_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"device_trigger.py must declare EVENT_BUTTON_{name}_PRESSED."
+        )
+        assert mapping_pattern.search(_TRIGGER_SOURCE) is not None, (
+            f"_TRIGGER_TYPE_TO_EVENT must map TRIGGER_TYPE_{name}_PRESSED."
+        )
+
+
+def test_multi_triggers_gated_on_multi_press_flag():
+    """Double/triple triggers must only be offered when gateway multi_press is on."""
+    import re
+
+    assert "_multi_press_enabled" in _TRIGGER_SOURCE
+    assert "_MULTI_TRIGGER_TYPES" in _TRIGGER_SOURCE
+    assert "_BASE_TRIGGER_TYPES" in _TRIGGER_SOURCE
+    assert "gateway_status" in _TRIGGER_SOURCE
+    # async_get_triggers must gate multi types on the helper (global status).
+    assert re.search(
+        r"if\s+_multi_press_enabled\s*\(\s*hass\s*\)\s*:",
+        _TRIGGER_SOURCE,
+    ), "async_get_triggers must call _multi_press_enabled before adding multi triggers"
+    assert re.search(
+        r"trigger_types\s*\|=?\s*_MULTI_TRIGGER_TYPES",
+        _TRIGGER_SOURCE,
+    )
+    assert re.search(
+        r'status\.get\(\s*["\']multi_press["\']\s*\)',
+        _TRIGGER_SOURCE,
+    ), "_multi_press_enabled must read coordinator.gateway_status['multi_press']"
+
+
 # --- regex helpers -------------------------------------------------------
 
 

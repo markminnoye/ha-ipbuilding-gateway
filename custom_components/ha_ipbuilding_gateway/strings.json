@@ -30,6 +30,9 @@
     }
   },
   "options": {
+    "abort": {
+      "not_loaded": "The integration is not loaded. Restart Home Assistant and try again."
+    },
     "step": {
       "init": {
         "title": "IPBuilding Gateway Options",
@@ -65,6 +68,8 @@
     "trigger_type": {
       "pressed": "Button pressed",
       "single_pressed": "Single pressed",
+      "double_pressed": "Double pressed",
+      "triple_pressed": "Triple pressed",
       "long_pressed": "Long pressed",
       "released": "Released"
     }
@@ -113,6 +118,8 @@
         "state": {
           "press": "Pressed",
           "single_press": "Single pressed",
+          "double_press": "Double pressed",
+          "triple_press": "Triple pressed",
           "long_press": "Long pressed",
           "release": "Released"
         }

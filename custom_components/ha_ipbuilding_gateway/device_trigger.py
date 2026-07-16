@@ -1,10 +1,11 @@
 """Device automation triggers for IPBuilding physical buttons.
 
-Surfaces four native triggers in the Home Assistant automation editor
-for every IP1100PoE button device:
+Surfaces native triggers in the Home Assistant automation editor for
+every IP1100PoE button device:
 
 - "Button pressed" (raw press edge)
 - "Single pressed" (the gesture - short tap, fired on release)
+- "Double pressed" / "Triple pressed" (when gateway multi-press is on)
 - "Long pressed" (held past the per-button threshold)
 - "Released" (raw release edge - useful for direction-flip blueprints)
 
@@ -30,11 +31,15 @@ from .const import DOMAIN
 
 TRIGGER_TYPE_PRESSED = "pressed"
 TRIGGER_TYPE_SINGLE_PRESSED = "single_pressed"
+TRIGGER_TYPE_DOUBLE_PRESSED = "double_pressed"
+TRIGGER_TYPE_TRIPLE_PRESSED = "triple_pressed"
 TRIGGER_TYPE_LONG_PRESSED = "long_pressed"
 TRIGGER_TYPE_RELEASED = "released"
 TRIGGER_TYPES = {
     TRIGGER_TYPE_PRESSED,
     TRIGGER_TYPE_SINGLE_PRESSED,
+    TRIGGER_TYPE_DOUBLE_PRESSED,
+    TRIGGER_TYPE_TRIPLE_PRESSED,
     TRIGGER_TYPE_LONG_PRESSED,
     TRIGGER_TYPE_RELEASED,
 }
@@ -42,12 +47,16 @@ TRIGGER_TYPES = {
 #: HA bus events fired by IPBuildingEventButton for each action.
 EVENT_BUTTON_PRESSED = f"{DOMAIN}.button_pressed"
 EVENT_BUTTON_SINGLE_PRESSED = f"{DOMAIN}.button_single_pressed"
+EVENT_BUTTON_DOUBLE_PRESSED = f"{DOMAIN}.button_double_pressed"
+EVENT_BUTTON_TRIPLE_PRESSED = f"{DOMAIN}.button_triple_pressed"
 EVENT_BUTTON_LONG_PRESSED = f"{DOMAIN}.button_long_pressed"
 EVENT_BUTTON_RELEASED = f"{DOMAIN}.button_released"
 
 _TRIGGER_TYPE_TO_EVENT: dict[str, str] = {
     TRIGGER_TYPE_PRESSED: EVENT_BUTTON_PRESSED,
     TRIGGER_TYPE_SINGLE_PRESSED: EVENT_BUTTON_SINGLE_PRESSED,
+    TRIGGER_TYPE_DOUBLE_PRESSED: EVENT_BUTTON_DOUBLE_PRESSED,
+    TRIGGER_TYPE_TRIPLE_PRESSED: EVENT_BUTTON_TRIPLE_PRESSED,
     TRIGGER_TYPE_LONG_PRESSED: EVENT_BUTTON_LONG_PRESSED,
     TRIGGER_TYPE_RELEASED: EVENT_BUTTON_RELEASED,
 }
@@ -57,6 +66,27 @@ TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
 )
 
 
+_BASE_TRIGGER_TYPES = {
+    TRIGGER_TYPE_PRESSED,
+    TRIGGER_TYPE_SINGLE_PRESSED,
+    TRIGGER_TYPE_LONG_PRESSED,
+    TRIGGER_TYPE_RELEASED,
+}
+_MULTI_TRIGGER_TYPES = {
+    TRIGGER_TYPE_DOUBLE_PRESSED,
+    TRIGGER_TYPE_TRIPLE_PRESSED,
+}
+
+
+def _multi_press_enabled(hass: HomeAssistant) -> bool:
+    """Return True when any linked gateway has global multi-press enabled."""
+    for coordinator in hass.data.get(DOMAIN, {}).values():
+        status = getattr(coordinator, "gateway_status", None)
+        if isinstance(status, dict) and status.get("multi_press"):
+            return True
+    return False
+
+
 async def async_get_triggers(
     hass: HomeAssistant, device_id: str
 ) -> list[dict[str, str]]:
@@ -64,7 +94,8 @@ async def async_get_triggers(
 
     Only devices that own an ``event`` entity from this integration (i.e.
     IP1100PoE physical buttons) get a trigger; relay/dimmer channel devices
-    are skipped.
+    are skipped. Double/triple triggers appear only when the gateway has
+    multi-press enabled (add-on option).
     """
     ent_reg = er.async_get(hass)
     is_button = any(
@@ -75,6 +106,9 @@ async def async_get_triggers(
     )
     if not is_button:
         return []
+    trigger_types = set(_BASE_TRIGGER_TYPES)
+    if _multi_press_enabled(hass):
+        trigger_types |= _MULTI_TRIGGER_TYPES
     return [
         {
             CONF_PLATFORM: "device",
@@ -82,7 +116,7 @@ async def async_get_triggers(
             CONF_DEVICE_ID: device_id,
             CONF_TYPE: trigger_type,
         }
-        for trigger_type in sorted(TRIGGER_TYPES)
+        for trigger_type in sorted(trigger_types)
     ]
 
 

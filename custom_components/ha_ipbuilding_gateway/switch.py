@@ -1,20 +1,26 @@
 """Switch entity platform for IPBuilding Open.
 
-Exposes relay/dimmer channels with semantic_type in (switch, plug, fan)
-as HA switch entities.
+Exposes relay/dimmer channels with semantic_type in (switch, plug, fan) as
+ON/OFF switch entities.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SEMANTIC_TYPE_FAN, SEMANTIC_TYPE_PLUG, SEMANTIC_TYPE_SWITCH
+from .const import (
+    DOMAIN,
+    SEMANTIC_TYPE_FAN,
+    SEMANTIC_TYPE_PLUG,
+    SEMANTIC_TYPE_SWITCH,
+)
 from .coordinator import IPBuildingCoordinator
 from .entity import apply_active_registry_defaults, build_channel_device_info, entity_icon
 
@@ -54,12 +60,12 @@ class IPBuildingSwitch(SwitchEntity):
         if state:
             self._update_from_state(state)
 
-        def callback(data: dict) -> None:
+        def _cb(data: dict) -> None:
             self._update_from_state(data)
             self.async_write_ha_state()
 
-        self._on_update = callback
-        self._coordinator.register_entity(self._entity_id, callback)
+        self._on_update = _cb
+        self._coordinator.register_entity(self._entity_id, _cb)
 
     async def async_will_remove_from_hass(self) -> None:
         """Unregister the update callback."""
@@ -110,17 +116,18 @@ async def async_setup_entry(
     seen_unique_ids: set[str] = set()
 
     def _add(devices_to_add: list[dict]) -> None:
-        new_switches = []
+        new_switches: list[SwitchEntity] = []
         for device in devices_to_add:
             if device.get("semantic_type") not in _SWITCH_SEMANTIC_TYPES:
                 continue
-            sw = IPBuildingSwitch(device, coordinator)
-            if sw._attr_unique_id in seen_unique_ids:
+            channel_sw = IPBuildingSwitch(device, coordinator)
+            if channel_sw._attr_unique_id in seen_unique_ids:
                 continue
-            seen_unique_ids.add(sw._attr_unique_id)
-            new_switches.append(sw)
-        for sw in new_switches:
-            coordinator.track_platform_entity("switch", sw._entity_id, sw)
+            seen_unique_ids.add(channel_sw._attr_unique_id)
+            new_switches.append(channel_sw)
+            coordinator.track_platform_entity(
+                "switch", channel_sw._entity_id, channel_sw
+            )
         if new_switches:
             async_add_entities(new_switches)
 
