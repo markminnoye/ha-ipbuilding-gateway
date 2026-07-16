@@ -128,21 +128,26 @@ def test_multi_press_trigger_types_registered():
 
 
 def test_multi_triggers_gated_on_multi_press_flag():
-    """Double/triple triggers must only be offered when multi_press is on."""
+    """Double/triple triggers must only be offered when gateway multi_press is on."""
     import re
 
     assert "_multi_press_enabled" in _TRIGGER_SOURCE
     assert "_MULTI_TRIGGER_TYPES" in _TRIGGER_SOURCE
     assert "_BASE_TRIGGER_TYPES" in _TRIGGER_SOURCE
-    # async_get_triggers must gate multi types on the helper.
+    assert "gateway_status" in _TRIGGER_SOURCE
+    # async_get_triggers must gate multi types on the helper (global status).
     assert re.search(
-        r"if\s+_multi_press_enabled\s*\(\s*hass\s*,\s*device_id\s*\)\s*:",
+        r"if\s+_multi_press_enabled\s*\(\s*hass\s*\)\s*:",
         _TRIGGER_SOURCE,
     ), "async_get_triggers must call _multi_press_enabled before adding multi triggers"
     assert re.search(
         r"trigger_types\s*\|=?\s*_MULTI_TRIGGER_TYPES",
         _TRIGGER_SOURCE,
     )
+    assert re.search(
+        r'status\.get\(\s*["\']multi_press["\']\s*\)',
+        _TRIGGER_SOURCE,
+    ), "_multi_press_enabled must read coordinator.gateway_status['multi_press']"
 
 
 # --- regex helpers -------------------------------------------------------

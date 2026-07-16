@@ -112,11 +112,6 @@
         "name": "Scan field bus for modules"
       }
     },
-    "switch": {
-      "multi_press": {
-        "name": "Multi-press"
-      }
-    },
     "event": {
       "button": {
         "name": "Button {hardware_id}",

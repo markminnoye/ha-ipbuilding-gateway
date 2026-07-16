@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 # fires on release of a short tap (below the long-press threshold); the gateway
 # keeps ``press`` and ``release`` as the always-present raw edges so dim/cover
 # blueprints can still key on them. ``double_press`` / ``triple_press`` are
-# opt-in multi-click gestures (gateway ``multi_press: true``).
+# opt-in multi-click gestures (global add-on option ``multi_press``).
 _BUTTON_EVENT_TYPES = [
     "press",
     "single_press",

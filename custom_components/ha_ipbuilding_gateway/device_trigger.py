@@ -5,7 +5,7 @@ every IP1100PoE button device:
 
 - "Button pressed" (raw press edge)
 - "Single pressed" (the gesture - short tap, fired on release)
-- "Double pressed" / "Triple pressed" (opt-in multi-click gestures)
+- "Double pressed" / "Triple pressed" (when gateway multi-press is on)
 - "Long pressed" (held past the per-button threshold)
 - "Released" (raw release edge - useful for direction-flip blueprints)
 
@@ -78,18 +78,12 @@ _MULTI_TRIGGER_TYPES = {
 }
 
 
-def _multi_press_enabled(hass: HomeAssistant, device_id: str) -> bool:
-    """Return True when the gateway snapshot has multi_press for this button."""
-    hardware_id = _hardware_id_for_device(hass, device_id)
-    if not hardware_id:
-        return False
+def _multi_press_enabled(hass: HomeAssistant) -> bool:
+    """Return True when any linked gateway has global multi-press enabled."""
     for coordinator in hass.data.get(DOMAIN, {}).values():
-        get_state = getattr(coordinator, "get_device_state", None)
-        if get_state is None:
-            continue
-        state = get_state(hardware_id)
-        if state is not None:
-            return bool(state.get("multi_press"))
+        status = getattr(coordinator, "gateway_status", None)
+        if isinstance(status, dict) and status.get("multi_press"):
+            return True
     return False
 
 
@@ -100,8 +94,8 @@ async def async_get_triggers(
 
     Only devices that own an ``event`` entity from this integration (i.e.
     IP1100PoE physical buttons) get a trigger; relay/dimmer channel devices
-    are skipped. Double/triple triggers appear only when multi-press is
-    enabled for the button on the gateway.
+    are skipped. Double/triple triggers appear only when the gateway has
+    multi-press enabled (add-on option).
     """
     ent_reg = er.async_get(hass)
     is_button = any(
@@ -113,7 +107,7 @@ async def async_get_triggers(
     if not is_button:
         return []
     trigger_types = set(_BASE_TRIGGER_TYPES)
-    if _multi_press_enabled(hass, device_id):
+    if _multi_press_enabled(hass):
         trigger_types |= _MULTI_TRIGGER_TYPES
     return [
         {

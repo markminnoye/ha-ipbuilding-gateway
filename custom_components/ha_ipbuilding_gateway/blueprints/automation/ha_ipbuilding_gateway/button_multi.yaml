@@ -1,14 +1,14 @@
-# ipbuilding_blueprint_version: 2
+# ipbuilding_blueprint_version: 3
 blueprint:
   name: IPBuilding wandknop — enkel/dubbel/lang
   description: >
-    **Blueprint-versie: 2.** Maps single, double, triple and long press of
+    **Blueprint-versie: 3.** Maps single, double, triple and long press of
     an IPBuilding IP1100PoE wall button to separate action sequences.
 
-    Zet op het knop-apparaat de schakelaar **Dubbel- en driedubbele druk**
-    aan (of in de gateway Web UI). Zolang die uit staat, komen er geen
-    double/triple events. Aan zetten vertraagt de enkele druk met ~350 ms.
-    Leave any action empty to ignore that gesture.
+    Zet in de gateway add-on Configuration de optie **multi_press** aan.
+    Zolang die uit staat, komen er geen double/triple events. Aan zetten
+    vertraagt de enkele druk met ~350 ms (add-on window). Leave any action
+    empty to ignore that gesture.
   domain: automation
   source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_multi.yaml
   input:

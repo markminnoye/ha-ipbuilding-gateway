@@ -268,7 +268,7 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> dict[str, Any] | None:
         """PATCH /api/v1/devices/{device_id} and merge the response into cache.
 
-        Used for northbound-only button/channel config (e.g. ``multi_press``).
+        Used for northbound-only button/channel config (e.g. name, room, active).
         Returns the updated device dict on success, or ``None`` on failure.
         """
         url = f"http://{self._host}:{self._port}/api/v1/devices/{device_id}"
