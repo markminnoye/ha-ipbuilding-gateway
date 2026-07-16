@@ -30,6 +30,9 @@
     }
   },
   "options": {
+    "abort": {
+      "not_loaded": "The integration is not loaded. Restart Home Assistant and try again."
+    },
     "step": {
       "init": {
         "title": "IPBuilding Gateway Options",

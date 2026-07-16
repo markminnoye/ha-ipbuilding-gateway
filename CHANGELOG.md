@@ -25,6 +25,16 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-07-16
+
+### Fixed
+- **Unload crash** `TypeError: a coroutine was expected, got True` — bootstrap
+  cancel was registered as `Task.cancel`, which returns `True` on unload; HA
+  then tries to schedule that return value. Wrap so the callback returns
+  `None`. Prevents the entry getting stuck in `FAILED_UNLOAD`.
+- Options flow aborts cleanly with `not_loaded` when the coordinator is gone
+  (e.g. after a failed unload) instead of raising `KeyError`.
+
 ## [1.8.0] - 2026-07-15
 
 ### Added

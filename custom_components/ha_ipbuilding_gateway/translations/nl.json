@@ -30,6 +30,9 @@
     }
   },
   "options": {
+    "abort": {
+      "not_loaded": "De integratie is niet geladen. Herstart Home Assistant en probeer opnieuw."
+    },
     "step": {
       "init": {
         "title": "IPBuilding Gateway Opties",

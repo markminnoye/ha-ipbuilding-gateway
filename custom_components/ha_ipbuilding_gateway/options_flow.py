@@ -50,6 +50,10 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         # ``async_get_options_flow`` on the config flow.
         return self
 
+    def _coordinator(self) -> Any | None:
+        """Return the running coordinator, or None if the entry is not loaded."""
+        return self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -60,6 +64,8 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         the gateway's rooms first became known — the operator should land
         on the room-mapping form, not the (multi-option) menu.
         """
+        if self._coordinator() is None:
+            return self.async_abort(reason="not_loaded")
         flag_key = f"{self.config_entry.entry_id}_auto_room_mapping"
         if self.hass.data.get(DOMAIN, {}).pop(flag_key, False):
             return await self.async_step_map_rooms()
@@ -82,7 +88,9 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         the mapping in ``entry.options``. Leaving a field empty falls
         back to creating/reusing an HA area with the gateway room name.
         """
-        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        coordinator = self._coordinator()
+        if coordinator is None:
+            return self.async_abort(reason="not_loaded")
         await coordinator.async_request_refresh()
         rooms = collect_unique_rooms(coordinator.devices_snapshot())
 
@@ -149,7 +157,9 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         ``_done`` step with the result summary. The gateway's
         120 s timeout remains the upper bound.
         """
-        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        coordinator = self._coordinator()
+        if coordinator is None:
+            return self.async_abort(reason="not_loaded")
         result = await coordinator.async_run_discover_with_result()
         placeholders = _scan_placeholders(result)
         return self.async_show_form(
@@ -180,7 +190,9 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         looking at a page with only a Submit button. Run the call
         directly and land on the ``_done`` step.
         """
-        coordinator = self.hass.data[DOMAIN][self.config_entry.entry_id]
+        coordinator = self._coordinator()
+        if coordinator is None:
+            return self.async_abort(reason="not_loaded")
         result = await coordinator.async_run_modules_refresh_with_result()
         placeholders = _refresh_placeholders(result)
         return self.async_show_form(
