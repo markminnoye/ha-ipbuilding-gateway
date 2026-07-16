@@ -109,6 +109,11 @@
         "name": "Modules opzoeken op de veldbus"
       }
     },
+    "switch": {
+      "multi_press": {
+        "name": "Dubbel- en driedubbele druk"
+      }
+    },
     "event": {
       "button": {
         "name": "Knop {hardware_id}",

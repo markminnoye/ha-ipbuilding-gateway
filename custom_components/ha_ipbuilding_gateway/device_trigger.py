@@ -66,6 +66,33 @@ TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
 )
 
 
+_BASE_TRIGGER_TYPES = {
+    TRIGGER_TYPE_PRESSED,
+    TRIGGER_TYPE_SINGLE_PRESSED,
+    TRIGGER_TYPE_LONG_PRESSED,
+    TRIGGER_TYPE_RELEASED,
+}
+_MULTI_TRIGGER_TYPES = {
+    TRIGGER_TYPE_DOUBLE_PRESSED,
+    TRIGGER_TYPE_TRIPLE_PRESSED,
+}
+
+
+def _multi_press_enabled(hass: HomeAssistant, device_id: str) -> bool:
+    """Return True when the gateway snapshot has multi_press for this button."""
+    hardware_id = _hardware_id_for_device(hass, device_id)
+    if not hardware_id:
+        return False
+    for coordinator in hass.data.get(DOMAIN, {}).values():
+        get_state = getattr(coordinator, "get_device_state", None)
+        if get_state is None:
+            continue
+        state = get_state(hardware_id)
+        if state is not None:
+            return bool(state.get("multi_press"))
+    return False
+
+
 async def async_get_triggers(
     hass: HomeAssistant, device_id: str
 ) -> list[dict[str, str]]:
@@ -73,7 +100,8 @@ async def async_get_triggers(
 
     Only devices that own an ``event`` entity from this integration (i.e.
     IP1100PoE physical buttons) get a trigger; relay/dimmer channel devices
-    are skipped.
+    are skipped. Double/triple triggers appear only when multi-press is
+    enabled for the button on the gateway.
     """
     ent_reg = er.async_get(hass)
     is_button = any(
@@ -84,6 +112,9 @@ async def async_get_triggers(
     )
     if not is_button:
         return []
+    trigger_types = set(_BASE_TRIGGER_TYPES)
+    if _multi_press_enabled(hass, device_id):
+        trigger_types |= _MULTI_TRIGGER_TYPES
     return [
         {
             CONF_PLATFORM: "device",
@@ -91,7 +122,7 @@ async def async_get_triggers(
             CONF_DEVICE_ID: device_id,
             CONF_TYPE: trigger_type,
         }
-        for trigger_type in sorted(TRIGGER_TYPES)
+        for trigger_type in sorted(trigger_types)
     ]
 
 

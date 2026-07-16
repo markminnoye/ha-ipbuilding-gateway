@@ -31,8 +31,15 @@ anders meldt.
 - **Dubbele en driedubbele druk** — `double_press` / `triple_press` events,
   device triggers (`double_pressed` / `triple_pressed`), en `count` in
   event_data (gemapt naar HA-standaard `multi_press_end`).
+- Config-schakelaar **Dubbel- en driedubbele druk** op elk knop-apparaat
+  (zet `multi_press` op de gateway via PATCH). Default uit = snelle
+  enkele druk; aan = ~350 ms wachttijd voor dubbel/trippel.
 - Nieuw blueprint **`button_multi`** voor enkel/dubbel/driedubbel/lang.
-  Vereist gateway ≥ 1.6.0 en per knop `multi_press: true` in `devices.json`.
+  Vereist gateway ≥ 1.6.0; zet multi-press aan op de knop (HA of Web UI).
+
+### Changed
+- Device triggers **dubbel/driedubbel** verschijnen alleen als multi-press
+  voor die knop aan staat.
 
 ## [1.7.2] - 2026-06-23
 

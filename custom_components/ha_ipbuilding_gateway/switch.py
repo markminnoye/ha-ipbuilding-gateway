@@ -1,20 +1,31 @@
 """Switch entity platform for IPBuilding Open.
 
-Exposes relay/dimmer channels with semantic_type in (switch, plug, fan)
-as HA switch entities.
+Exposes:
+- Relay/dimmer channels with semantic_type in (switch, plug, fan) as
+  ON/OFF switch entities.
+- IP1100PoE wall buttons as a CONFIG switch to enable/disable
+  multi-press (double/triple) classification on the gateway.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SEMANTIC_TYPE_FAN, SEMANTIC_TYPE_PLUG, SEMANTIC_TYPE_SWITCH
+from .const import (
+    DEVICE_TYPE_INPUT,
+    DOMAIN,
+    SEMANTIC_TYPE_FAN,
+    SEMANTIC_TYPE_PLUG,
+    SEMANTIC_TYPE_SWITCH,
+)
 from .coordinator import IPBuildingCoordinator
 from .entity import apply_active_registry_defaults, build_channel_device_info, entity_icon
 
@@ -54,12 +65,12 @@ class IPBuildingSwitch(SwitchEntity):
         if state:
             self._update_from_state(state)
 
-        def callback(data: dict) -> None:
+        def _cb(data: dict) -> None:
             self._update_from_state(data)
             self.async_write_ha_state()
 
-        self._on_update = callback
-        self._coordinator.register_entity(self._entity_id, callback)
+        self._on_update = _cb
+        self._coordinator.register_entity(self._entity_id, _cb)
 
     async def async_will_remove_from_hass(self) -> None:
         """Unregister the update callback."""
@@ -95,6 +106,68 @@ class IPBuildingSwitch(SwitchEntity):
         await self._coordinator.async_send_command(self._entity_id, "OFF")
 
 
+class IPBuildingMultiPressSwitch(SwitchEntity):
+    """CONFIG switch: enable gateway multi-press classification for a button."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_translation_key = "multi_press"
+    _attr_icon = "mdi:gesture-double-tap"
+
+    def __init__(
+        self,
+        device: dict[str, Any],
+        coordinator: IPBuildingCoordinator,
+    ) -> None:
+        self._device = device
+        self._coordinator = coordinator
+        self._hardware_id = device["id"]
+        self._attr_unique_id = f"{self._hardware_id}_multi_press"
+        module = coordinator.module_for_channel(device)
+        self._attr_device_info = build_channel_device_info(device, module)
+        self._attr_is_on = bool(device.get("multi_press", False))
+        self._on_update: Callable[[dict], None] | None = None
+        apply_active_registry_defaults(self, device)
+
+    async def async_added_to_hass(self) -> None:
+        """Register for snapshot / PATCH updates from the coordinator."""
+        state = self._coordinator.get_device_state(self._hardware_id)
+        if state:
+            self._attr_is_on = bool(state.get("multi_press", False))
+
+        @callback
+        def _cb(data: dict) -> None:
+            if "multi_press" in data:
+                self._attr_is_on = bool(data.get("multi_press", False))
+                self.async_write_ha_state()
+
+        self._on_update = _cb
+        self._coordinator.register_entity(self._hardware_id, _cb)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister the update callback."""
+        if self._on_update is not None:
+            self._coordinator.unregister_entity(self._hardware_id, self._on_update)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Enable multi-press on the gateway for this button."""
+        updated = await self._coordinator.async_patch_device(
+            self._hardware_id, {"multi_press": True}
+        )
+        if updated is not None:
+            self._attr_is_on = True
+            self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disable multi-press on the gateway for this button."""
+        updated = await self._coordinator.async_patch_device(
+            self._hardware_id, {"multi_press": False}
+        )
+        if updated is not None:
+            self._attr_is_on = False
+            self.async_write_ha_state()
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -110,17 +183,28 @@ async def async_setup_entry(
     seen_unique_ids: set[str] = set()
 
     def _add(devices_to_add: list[dict]) -> None:
-        new_switches = []
+        new_switches: list[SwitchEntity] = []
         for device in devices_to_add:
+            if device.get("device_type") == DEVICE_TYPE_INPUT:
+                sw: SwitchEntity = IPBuildingMultiPressSwitch(device, coordinator)
+                if sw.unique_id in seen_unique_ids:
+                    continue
+                seen_unique_ids.add(sw.unique_id)  # type: ignore[arg-type]
+                new_switches.append(sw)
+                coordinator.track_platform_entity(
+                    "switch", device["id"], sw
+                )
+                continue
             if device.get("semantic_type") not in _SWITCH_SEMANTIC_TYPES:
                 continue
-            sw = IPBuildingSwitch(device, coordinator)
-            if sw._attr_unique_id in seen_unique_ids:
+            channel_sw = IPBuildingSwitch(device, coordinator)
+            if channel_sw._attr_unique_id in seen_unique_ids:
                 continue
-            seen_unique_ids.add(sw._attr_unique_id)
-            new_switches.append(sw)
-        for sw in new_switches:
-            coordinator.track_platform_entity("switch", sw._entity_id, sw)
+            seen_unique_ids.add(channel_sw._attr_unique_id)
+            new_switches.append(channel_sw)
+            coordinator.track_platform_entity(
+                "switch", channel_sw._entity_id, channel_sw
+            )
         if new_switches:
             async_add_entities(new_switches)
 

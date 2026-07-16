@@ -370,6 +370,9 @@ def test_multi_blueprint_maps_single_double_triple_long() -> None:
     assert path.exists(), "button_multi.yaml must be shipped"
     text = path.read_text(encoding="utf-8")
     assert "wait_for_trigger" not in text
+    assert "ipbuilding_blueprint_version: 2" in text
+    assert "Dubbel- en driedubbele druk" in text
+    assert "devices.json" not in text
     for evt in ("single_press", "double_press", "triple_press", "long_press"):
         assert f'to: "{evt}"' in text, (
             f"button_multi.yaml must trigger on {evt}"

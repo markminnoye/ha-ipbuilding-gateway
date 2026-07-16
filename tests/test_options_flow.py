@@ -141,6 +141,8 @@ def test_changelog_has_1_8_0_entry() -> None:
     assert "## [1.8.0]" in text
     assert "double_press" in text
     assert "button_multi" in text
+    assert "Dubbel- en driedubbele druk" in text
+    assert "multi-press" in text.lower() or "multi_press" in text
 
 
 def test_changelog_has_1_7_2_entry() -> None:

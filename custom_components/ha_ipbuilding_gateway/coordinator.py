@@ -263,6 +263,39 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Run POST /api/v1/discover on the gateway."""
         await self.async_run_discover_with_result()
 
+    async def async_patch_device(
+        self, device_id: str, fields: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """PATCH /api/v1/devices/{device_id} and merge the response into cache.
+
+        Used for northbound-only button/channel config (e.g. ``multi_press``).
+        Returns the updated device dict on success, or ``None`` on failure.
+        """
+        url = f"http://{self._host}:{self._port}/api/v1/devices/{device_id}"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.patch(
+                    url,
+                    json=fields,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    if resp.status != 200:
+                        log.warning(
+                            "PATCH device %s returned %s", device_id, resp.status
+                        )
+                        return None
+                    body = await resp.json()
+        except Exception as exc:
+            log.warning("PATCH device %s failed: %s", device_id, exc)
+            return None
+
+        if isinstance(self._data, dict):
+            merged = dict(self._data.get(device_id, {}), **body)
+            self._data[device_id] = merged
+            self._notify(device_id, merged)
+            return merged
+        return body
+
     async def async_run_modules_refresh_with_result(self) -> dict[str, Any]:
         """POST /api/v1/modules/refresh; return module and button counts.
 
