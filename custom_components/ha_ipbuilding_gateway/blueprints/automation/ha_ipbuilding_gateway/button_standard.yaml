@@ -1,20 +1,24 @@
 blueprint:
   name: IPBuilding wandknop
   description: >
-    **Blueprint-versie: 9.** Wandknop met drie actie-slots:
-    Indrukken (korte tik), Vasthouden (long press) en Loslaten
-    (release ná een lange druk). Vasthouden en Loslaten zijn
-    optioneel — laat ze leeg als je alleen een korte druk wilt
-    gebruiken.
+    **Blueprint-versie: 11.** Actie-slots voor één IP1100PoE-wandknop,
+    gelabeld naar Matter-semantiek: korte druk, multi-press (optioneel),
+    lange druk en loslaten na lange druk. Laat een slot leeg om dat
+    gebaar te negeren.
 
-    Voor een kant-en-klare dimmer-configuratie (toggle / dim_start /
-    dim_stop) kun je deze blueprint vullen met de native services
-    `light.toggle`, `ha_ipbuilding_gateway.dim_start`,
-    `ha_ipbuilding_gateway.dim_stop` — of direct kiezen voor de
-    presets `button_dim` (native ramp) of `button_dim_stepwise`
-    (HA-stapsgewijs met helper).
+    **Multi-press** (dubbel/driedubbel) staat standaard ingeklapt en
+    werkt alleen als de gateway add-on *Dubbel- en driedubbelklik* aan
+    staat (Configuratie → Installatie). Zonder die optie blijven korte
+    druk, lange druk en loslaten gewoon werken.
+
+    **Dimmen?** Gebruik liever het blueprint *IPBuilding wandknop —
+    dimmen* (`button_dim`, native hold-to-dim). Wil je zelf services
+    kiezen, vul hier `light.toggle`, `ha_ipbuilding_gateway.dim_start`
+    en `ha_ipbuilding_gateway.dim_stop` in.
   domain: automation
   source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_standard.yaml
+  homeassistant:
+    min_version: "2024.6.0"
 
   input:
     common_section:
@@ -34,36 +38,63 @@ blueprint:
                   integration: ha_ipbuilding_gateway
 
     press_section:
-      name: Indrukken
+      name: Korte druk (`press_end`)
       icon: mdi:gesture-tap-button
       input:
         press_action:
-          name: Actie bij indrukken
-          description: Eén of meer acties op een korte tik (single_press).
+          name: Actie bij korte druk
+          description: Eén of meer acties op een korte tik (single_press / press_end).
+          default: []
+          selector:
+            action:
+
+    multi_press_section:
+      name: Multi-press (`multi_press_end`)
+      icon: mdi:gesture-double-tap
+      description: >
+        Dubbele en driedubbele druk werken alleen als de gateway add-on
+        multi-press herkent: Instellingen → Add-ons → IPBuilding Gateway →
+        Configuratie → Installatie → *Dubbel- en driedubbelklik* aan.
+        Herstart de add-on na wijziging. Met multi-press aan wacht de
+        gateway na elke klik kort (~350 ms, *Multi-press venster*) —
+        de actie bij een korte druk start daarom met die vertraging.
+      collapsed: true
+      input:
+        double_action:
+          name: Actie bij dubbele druk
+          description: Eén of meer acties op een dubbele druk (double_press / multi_press_end).
+          default: []
+          selector:
+            action:
+        triple_action:
+          name: Actie bij driedubbele druk
+          description: Eén of meer acties op een driedubbele druk (triple_press / multi_press_end).
           default: []
           selector:
             action:
 
     long_press_section:
-      name: Vasthouden
+      name: Lange druk (`long_press_start`)
       icon: mdi:gesture-tap-hold
       input:
         long_press_action:
-          name: Actie bij vasthouden
-          description: Eén of meer acties zolang de knop wordt vastgehouden (long_press).
+          name: Actie bij lange druk
+          description: >
+            Eén of meer acties terwijl de knop wordt vastgehouden
+            (long_press / long_press_start).
           default: []
           selector:
             action:
 
     release_section:
-      name: Loslaten
+      name: Loslaten na lange druk (`long_release`)
       icon: mdi:gesture-tap
       input:
         release_action:
-          name: Actie bij loslaten (ná vasthouden)
+          name: Actie bij loslaten na lange druk
           description: >
             Actie die alleen vuurt op de release die een lange druk
-            afsluit. Laat leeg als je geen loslaat-actie wilt.
+            afsluit (long_release). Laat leeg als je geen loslaat-actie wilt.
           default: []
           selector:
             action:
@@ -74,6 +105,7 @@ trigger:
   # The gateway classifies the press: single_press fires on the release
   # of a short tap, long_press fires at the hold threshold while the
   # button is still held, release fires when the button is released.
+  # double_press / triple_press require the add-on multi_press option.
   # single_press and long_press are mutually exclusive; release fires
   # after either, but the action block scopes it to long_press only
   # via the `from: "long_press"` guard.
@@ -85,6 +117,22 @@ trigger:
       - unavailable
       - unknown
     id: short
+  - platform: state
+    entity_id: !input button_entity
+    attribute: event_type
+    to: "double_press"
+    not_from:
+      - unavailable
+      - unknown
+    id: double
+  - platform: state
+    entity_id: !input button_entity
+    attribute: event_type
+    to: "triple_press"
+    not_from:
+      - unavailable
+      - unknown
+    id: triple
   - platform: state
     entity_id: !input button_entity
     attribute: event_type
@@ -107,6 +155,14 @@ action:
   - choose:
       - conditions:
           - condition: trigger
+            id: double
+        sequence: !input double_action
+      - conditions:
+          - condition: trigger
+            id: triple
+        sequence: !input triple_action
+      - conditions:
+          - condition: trigger
             id: long
         sequence: !input long_press_action
       - conditions:
@@ -115,4 +171,4 @@ action:
         sequence: !input release_action
     default: !input press_action
 
-# ipbuilding_blueprint_version: 9
+# ipbuilding_blueprint_version: 11

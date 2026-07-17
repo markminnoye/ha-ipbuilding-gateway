@@ -352,38 +352,55 @@ def test_standard_blueprint_has_three_slots_with_release_after_long_press() -> N
     )
     input_text = text[text.index("input:") : text.index("\ntrigger:")]
     assert "press_action:" in input_text
+    assert "double_action:" in input_text
+    assert "triple_action:" in input_text
     assert "long_press_action:" in input_text
     assert "release_action:" in input_text
-    for slot in ("press_action", "long_press_action", "release_action"):
+    for slot in (
+        "press_action",
+        "double_action",
+        "triple_action",
+        "long_press_action",
+        "release_action",
+    ):
         assert re.search(
             rf"{slot}:[\s\S]*?selector:\s*\n\s+action:",
             input_text,
         ), f"{slot} must use `selector: action:`"
     assert "!input press_action" in action_block
+    assert "!input double_action" in action_block
+    assert "!input triple_action" in action_block
     assert "!input long_press_action" in action_block
     assert "!input release_action" in action_block
 
 
-def test_multi_blueprint_maps_single_double_triple_long() -> None:
-    """button_multi.yaml maps single/double/triple/long without timing logic."""
+def test_standard_blueprint_maps_multi_press_in_collapsed_section() -> None:
+    """button_standard v11 embeds multi-press behind a collapsed section."""
     path = _BLUEPRINT_DIR / "button_multi.yaml"
-    assert path.exists(), "button_multi.yaml must be shipped"
+    assert not path.exists(), "button_multi.yaml must be removed (unified into standard)"
+    path = _BLUEPRINT_DIR / "button_standard.yaml"
     text = path.read_text(encoding="utf-8")
     assert "wait_for_trigger" not in text
-    assert "ipbuilding_blueprint_version: 3" in text
-    assert "multi_press" in text
+    assert "ipbuilding_blueprint_version: 11" in text
+    assert "min_version: \"2024.6.0\"" in text or "min_version: '2024.6.0'" in text
+    assert "collapsed: true" in text
+    assert "multi_press_section:" in text
+    assert "press_end" in text
+    assert "multi_press_end" in text
+    assert "long_press_start" in text
+    assert "long_release" in text
     assert "devices.json" not in text
-    assert "Dubbel- en driedubbele druk" not in text
     assert "Web UI" not in text
     for evt in ("single_press", "double_press", "triple_press", "long_press"):
         assert f'to: "{evt}"' in text, (
-            f"button_multi.yaml must trigger on {evt}"
+            f"button_standard.yaml must trigger on {evt}"
         )
     for inp in (
-        "single_action",
+        "press_action",
         "double_action",
         "triple_action",
-        "long_action",
+        "long_press_action",
+        "release_action",
     ):
         assert f"!input {inp}" in text
         assert f"{inp}:" in text
@@ -446,14 +463,14 @@ def test_button_blueprints_use_event_type_attribute_on_triggers() -> None:
     for "Hal R → bureau toggle" reported on 2026-06-19.
     """
     targets = {
-        "button_standard.yaml": ["press", "release"],
-        "button_dim.yaml": ["press", "long_press", "release"],
-        "button_multi.yaml": [
+        "button_standard.yaml": [
             "single_press",
             "double_press",
             "triple_press",
             "long_press",
+            "release",
         ],
+        "button_dim.yaml": ["press", "long_press", "release"],
     }
     for filename, event_types in targets.items():
         path = _BLUEPRINT_DIR / filename
@@ -497,6 +514,12 @@ def test_standard_blueprint_uses_action_selector() -> None:
     assert "press_action:" in text, (
         "button_standard.yaml must declare a `press_action` input"
     )
+    assert "double_action:" in text, (
+        "button_standard.yaml v11 must declare a `double_action` input"
+    )
+    assert "triple_action:" in text, (
+        "button_standard.yaml v11 must declare a `triple_action` input"
+    )
     assert "long_press_action:" in text, (
         "button_standard.yaml must declare a `long_press_action` input"
     )
@@ -508,6 +531,12 @@ def test_standard_blueprint_uses_action_selector() -> None:
     assert re.search(
         r"press_action:[\s\S]*?selector:\s*\n\s+action:", text
     ), "press_action input must use `selector: action:`"
+    assert re.search(
+        r"double_action:[\s\S]*?selector:\s*\n\s+action:", text
+    ), "double_action input must use `selector: action:`"
+    assert re.search(
+        r"triple_action:[\s\S]*?selector:\s*\n\s+action:", text
+    ), "triple_action input must use `selector: action:`"
     assert re.search(
         r"long_press_action:[\s\S]*?selector:\s*\n\s+action:", text
     ), "long_press_action input must use `selector: action:`"
@@ -565,6 +594,14 @@ def test_standard_blueprint_wires_press_long_action_inputs() -> None:
     assert "!input press_action" in action_block, (
         "button_standard.yaml must reference the operator-defined "
         "press action list via `!input press_action`."
+    )
+    assert "!input double_action" in action_block, (
+        "button_standard.yaml v11 must reference the operator-defined "
+        "double action list via `!input double_action`."
+    )
+    assert "!input triple_action" in action_block, (
+        "button_standard.yaml v11 must reference the operator-defined "
+        "triple action list via `!input triple_action`."
     )
     assert "!input long_press_action" in action_block, (
         "button_standard.yaml must reference the operator-defined "

@@ -25,6 +25,17 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.8.0.rc2] - 2026-07-17
+
+### Changed
+- Blueprint **`button_standard` v11** — Matter-achtige labels (korte druk /
+  multi-press / lange druk / loslaten na lange druk); dubbel- en
+  driedubbele druk in een standaard ingeklapte Multi-press-sectie
+  (vereist add-on *Dubbel- en driedubbelklik*). Input-keys
+  `press_action` / `long_press_action` / `release_action` ongewijzigd;
+  nieuw `double_action` / `triple_action`. `min_version: 2024.6.0`
+  voor collapsed secties.
+
 ## [1.8.0] - 2026-07-16
 
 ### Added
