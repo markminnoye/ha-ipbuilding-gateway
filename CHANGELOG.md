@@ -25,12 +25,6 @@ anders meldt.
 
 ## [Unreleased]
 
-## [1.8.1] - 2026-07-17
-
-### Fixed
-- **hassfest** — service descriptions no longer use `D<ch>…` (rejected as HTML);
-  rewritten as `D{ch}…` in `strings.json`, translations, and `services.yaml`.
-
 ## [1.8.0] - 2026-07-16
 
 ### Added
@@ -53,6 +47,8 @@ anders meldt.
   `None`. Prevents the entry getting stuck in `FAILED_UNLOAD`.
 - Options flow aborts cleanly with `not_loaded` when the coordinator is gone
   (e.g. after a failed unload) instead of raising `KeyError`.
+- **hassfest** — service descriptions no longer use `D<ch>…` (rejected as HTML);
+  rewritten as `D{ch}…` in `strings.json`, translations, and `services.yaml`.
 
 ## [1.7.2] - 2026-06-23
 
