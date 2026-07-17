@@ -25,6 +25,12 @@ anders meldt.
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-07-17
+
+### Fixed
+- **hassfest** — service descriptions no longer use `D<ch>…` (rejected as HTML);
+  rewritten as `D{ch}…` in `strings.json`, translations, and `services.yaml`.
+
 ## [1.8.0] - 2026-07-16
 
 ### Added
