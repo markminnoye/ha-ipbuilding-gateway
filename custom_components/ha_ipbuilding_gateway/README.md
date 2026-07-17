@@ -36,7 +36,7 @@ quality scale. It therefore:
 | `light` | Relay on/off, dimmer brightness | Gateway `state_changed` + commands |
 | `switch` | Relay/dimmer with semantic switch types | Same |
 | `button` | `EventEntity` (IP1100PoE press), `ButtonEntity` (discovery sweep) | WS `button_pressed` / REST discover |
-| `sensor` | Per-channel `current_watt`, gateway `gateway_status` | WS snapshot + `gateway_status` |
+| `sensor` | Per-channel `current_watt`, gateway `gateway_status`, per-module model/firmware/last_seen | WS snapshot + `gateway_status` + modules |
 
 Module types on the field bus: **IP0200PoE** (relay), **IP0300PoE** (dimmer),
 **IP1100PoE** (input / buttons).

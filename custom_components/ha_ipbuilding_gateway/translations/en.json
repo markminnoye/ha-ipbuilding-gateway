@@ -105,6 +105,15 @@
           "degraded": "Degraded",
           "unhealthy": "Unhealthy"
         }
+      },
+      "module_model": {
+        "name": "Model"
+      },
+      "module_firmware": {
+        "name": "Firmware"
+      },
+      "module_last_seen": {
+        "name": "Last seen by gateway"
       }
     },
     "button": {

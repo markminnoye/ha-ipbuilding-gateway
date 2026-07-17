@@ -1,12 +1,15 @@
 """Sensor entity platform for IPBuilding Open.
 
-Exposes power readings (current_watt) from state_changed events
-as sensor entities with DeviceClass.POWER.
+Exposes:
+- Power readings (``current_watt``) from channel state_changed events
+- Gateway diagnostic status
+- Per-module diagnostic sensors (model, firmware, last_seen by gateway)
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -19,7 +22,12 @@ from homeassistant.const import UnitOfPower
 
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
-from .entity import apply_active_registry_defaults, build_channel_device_info
+from .entity import (
+    apply_active_registry_defaults,
+    build_channel_device_info,
+    build_module_hub_device_info,
+    module_device_model,
+)
 from .hub import gateway_device_info
 
 log = logging.getLogger(__name__)
@@ -29,6 +37,22 @@ _STATUS_ICONS = {
     "degraded": "mdi:alert",
     "unhealthy": "mdi:alert-circle",
 }
+
+
+def _parse_iso_timestamp(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 timestamp from the gateway into a tz-aware datetime."""
+    if not value:
+        return None
+    text = value
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 class IPBuildingGatewayStatusSensor(SensorEntity):
@@ -73,6 +97,108 @@ class IPBuildingGatewayStatusSensor(SensorEntity):
         }
         if status.get("version"):
             self._attr_device_info = gateway_device_info(self._entry, self._coordinator)
+
+
+class IPBuildingModuleSensor(SensorEntity):
+    """Diagnostic sensor attached to a physical field module (Tier 2)."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator: IPBuildingCoordinator,
+        module: dict[str, Any],
+        *,
+        kind: str,
+        translation_key: str,
+        icon: str,
+        device_class: SensorDeviceClass | None = None,
+    ) -> None:
+        self._entry = entry
+        self._coordinator = coordinator
+        self._mac = module["id"]
+        self._kind = kind
+        self._attr_unique_id = f"{self._mac}_{kind}"
+        self._attr_translation_key = translation_key
+        self._attr_icon = icon
+        if device_class is not None:
+            self._attr_device_class = device_class
+        self._attr_device_info = self._device_info_for(module)
+        self._on_modules: Callable[[dict[str, dict[str, Any]]], None] | None = None
+        self._apply_module(module)
+
+    def _device_info_for(self, module: dict[str, Any]) -> dict[str, Any]:
+        info = build_module_hub_device_info(module)
+        info["via_device"] = (DOMAIN, self._entry.entry_id)
+        return info
+
+    async def async_added_to_hass(self) -> None:
+        @callback
+        def _listener(modules: dict[str, dict[str, Any]]) -> None:
+            module = modules.get(self._mac)
+            if module is None:
+                return
+            self._apply_module(module)
+            self.async_write_ha_state()
+
+        self._on_modules = _listener
+        self._coordinator.register_module_listener(_listener)
+
+    async def async_will_remove_from_hass(self) -> None:
+        if self._on_modules is not None:
+            self._coordinator.unregister_module_listener(self._on_modules)
+
+    def _apply_module(self, module: dict[str, Any]) -> None:
+        self._attr_device_info = self._device_info_for(module)
+        if self._kind == "model":
+            self._attr_native_value = (
+                module_device_model(module) or module.get("type") or None
+            )
+        elif self._kind == "firmware":
+            self._attr_native_value = module.get("firmware") or None
+        elif self._kind == "last_seen":
+            self._attr_native_value = _parse_iso_timestamp(module.get("last_seen"))
+            source = module.get("last_seen_source") or None
+            self._attr_extra_state_attributes = (
+                {"source": source} if source else {}
+            )
+
+
+def _make_module_sensors(
+    entry: ConfigEntry,
+    coordinator: IPBuildingCoordinator,
+    module: dict[str, Any],
+) -> list[IPBuildingModuleSensor]:
+    """Create the three diagnostic sensors for one module."""
+    return [
+        IPBuildingModuleSensor(
+            entry,
+            coordinator,
+            module,
+            kind="model",
+            translation_key="module_model",
+            icon="mdi:chip",
+        ),
+        IPBuildingModuleSensor(
+            entry,
+            coordinator,
+            module,
+            kind="firmware",
+            translation_key="module_firmware",
+            icon="mdi:memory",
+        ),
+        IPBuildingModuleSensor(
+            entry,
+            coordinator,
+            module,
+            kind="last_seen",
+            translation_key="module_last_seen",
+            icon="mdi:clock-check-outline",
+            device_class=SensorDeviceClass.TIMESTAMP,
+        ),
+    ]
 
 
 def _make_power_description(device: dict[str, Any]) -> SensorEntityDescription:
@@ -152,13 +278,28 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up power sensor entities from a config entry."""
+    """Set up power and diagnostic sensor entities from a config entry."""
     coordinator: IPBuildingCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     hub_entities = [
         IPBuildingGatewayStatusSensor(entry, coordinator),
     ]
     async_add_entities(hub_entities)
+
+    known_module_macs: set[str] = set()
+
+    def _add_module_sensors(modules: dict[str, dict[str, Any]]) -> None:
+        new_sensors: list[IPBuildingModuleSensor] = []
+        for mac, module in modules.items():
+            if not mac or mac in known_module_macs:
+                continue
+            known_module_macs.add(mac)
+            new_sensors.extend(_make_module_sensors(entry, coordinator, module))
+        if new_sensors:
+            async_add_entities(new_sensors)
+
+    _add_module_sensors(coordinator.modules)
+    coordinator.register_module_listener(_add_module_sensors)
 
     devices = coordinator.devices_snapshot()
 

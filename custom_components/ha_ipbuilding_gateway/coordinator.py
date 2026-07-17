@@ -86,6 +86,7 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._entry = entry
         self._gateway_status: dict[str, Any] = {}
         self._gateway_listeners: list[Callable[[dict[str, Any]], None]] = []
+        self._module_listeners: list[Callable[[dict[str, dict[str, Any]]], None]] = []
         super().__init__(hass, log, name=DOMAIN)
 
     @property
@@ -182,6 +183,7 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         data = await resp.json()
                         modules = data.get("modules", [])
                         self._modules = {m["id"]: m for m in modules if m.get("id")}
+                        self._notify_modules()
                     else:
                         log.warning("Gateway modules returned %s", resp.status)
         except Exception as exc:
@@ -362,6 +364,19 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         with contextlib.suppress(ValueError):
             self._gateway_listeners.remove(callback)
 
+    def register_module_listener(
+        self, callback: Callable[[dict[str, dict[str, Any]]], None]
+    ) -> None:
+        """Register for module-metadata updates (keyed by MAC)."""
+        self._module_listeners.append(callback)
+
+    def unregister_module_listener(
+        self, callback: Callable[[dict[str, dict[str, Any]]], None]
+    ) -> None:
+        """Unregister a module-metadata listener."""
+        with contextlib.suppress(ValueError):
+            self._module_listeners.remove(callback)
+
     def _apply_gateway_status(self, data: dict[str, Any]) -> None:
         """Store gateway status payload (REST or WS)."""
         self._gateway_status = {k: v for k, v in data.items() if k != "type"}
@@ -372,6 +387,14 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 cb(self._gateway_status)
             except Exception:
                 log.exception("Gateway status listener error")
+
+    def _notify_modules(self) -> None:
+        modules = dict(self._modules)
+        for cb in self._module_listeners:
+            try:
+                cb(modules)
+            except Exception:
+                log.exception("Module listener error")
 
     # -------------------------------------------------------------------------
     # WebSocket lifecycle
@@ -546,7 +569,10 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Track per-MAC module metadata for the 3-tier device tree. Older
             # `snapshot` payloads did not include `modules`; the empty-dict
             # fallback preserves existing behaviour.
-            self._modules = {m["id"]: m for m in data.get("modules", [])}
+            self._modules = {
+                m["id"]: m for m in data.get("modules", []) if m.get("id")
+            }
+            self._notify_modules()
             devices = data.get("devices", [])
             self._data = {dev["id"]: dev for dev in devices}
             self._notify_all(devices)

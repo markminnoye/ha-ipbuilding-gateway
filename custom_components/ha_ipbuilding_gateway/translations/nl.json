@@ -105,6 +105,15 @@
           "degraded": "Gedegradeerd",
           "unhealthy": "Ongezond"
         }
+      },
+      "module_model": {
+        "name": "Model"
+      },
+      "module_firmware": {
+        "name": "Firmware"
+      },
+      "module_last_seen": {
+        "name": "Laatst gezien door gateway"
       }
     },
     "button": {

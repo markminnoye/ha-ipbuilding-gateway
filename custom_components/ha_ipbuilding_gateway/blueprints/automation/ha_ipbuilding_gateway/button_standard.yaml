@@ -1,20 +1,18 @@
 blueprint:
   name: IPBuilding wandknop
   description: >
-    **Blueprint-versie: 11.** Actie-slots voor één IP1100PoE-wandknop,
-    gelabeld naar Matter-semantiek: korte druk, multi-press (optioneel),
-    lange druk en loslaten na lange druk. Laat een slot leeg om dat
-    gebaar te negeren.
+    **Blueprint-versie: 11.** Koppel één IP1100PoE-wandknop aan acties.
+    Gebaren: korte druk, lange druk, loslaten na lange druk, en optioneel
+    dubbel-/driedubbelklik. Laat een slot leeg om dat gebaar te negeren.
 
-    **Multi-press** (dubbel/driedubbel) staat standaard ingeklapt en
-    werkt alleen als de gateway add-on *Dubbel- en driedubbelklik* aan
-    staat (Configuratie → Installatie). Zonder die optie blijven korte
-    druk, lange druk en loslaten gewoon werken.
+    **Dubbel- en driedubbelklik** staan standaard ingeklapt. Ze werken
+    alleen als in de gateway add-on *Dubbel- en driedubbelklik* aan staat
+    (Configuratie → Installatie; herstart daarna). Zonder die optie
+    werken korte druk, lange druk en loslaten gewoon verder.
 
-    **Dimmen?** Gebruik liever het blueprint *IPBuilding wandknop —
-    dimmen* (`button_dim`, native hold-to-dim). Wil je zelf services
-    kiezen, vul hier `light.toggle`, `ha_ipbuilding_gateway.dim_start`
-    en `ha_ipbuilding_gateway.dim_stop` in.
+    **Dimmen:** gebruik liever *IPBuilding wandknop — dimmen*, of vul hier
+    zelf `light.toggle`, `ha_ipbuilding_gateway.dim_start` en
+    `ha_ipbuilding_gateway.dim_stop` in.
   domain: automation
   source_url: https://github.com/markminnoye/ha-ipbuilding-gateway/blob/main/custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_standard.yaml
   homeassistant:

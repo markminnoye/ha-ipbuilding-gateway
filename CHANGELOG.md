@@ -25,25 +25,21 @@ anders meldt.
 
 ## [Unreleased]
 
-## [1.8.0.rc2] - 2026-07-17
-
-### Changed
-- Blueprint **`button_standard` v11** — Matter-achtige labels (korte druk /
-  multi-press / lange druk / loslaten na lange druk); dubbel- en
-  driedubbele druk in een standaard ingeklapte Multi-press-sectie
-  (vereist add-on *Dubbel- en driedubbelklik*). Input-keys
-  `press_action` / `long_press_action` / `release_action` ongewijzigd;
-  nieuw `double_action` / `triple_action`. `min_version: 2024.6.0`
-  voor collapsed secties.
-
-## [1.8.0] - 2026-07-16
+## [1.8.0] - 2026-07-17
 
 ### Added
 - **Dubbele en driedubbele druk** — `double_press` / `triple_press` events,
   device triggers (`double_pressed` / `triple_pressed`), en `count` in
-  event_data (gemapt naar HA-standaard `multi_press_end`).
-- Nieuw blueprint **`button_multi`** voor enkel/dubbel/driedubbel/lang.
-  Vereist gateway ≥ 1.6.0 with add-on **multi_press** enabled.
+  event_data (gemapt naar HA-standaard `multi_press_end`). Vereist gateway
+  ≥ 1.6.0 met add-on **Dubbel- en driedubbelklik** aan.
+- Blueprint **`button_standard` v11** — Matter-achtige labels (korte druk /
+  multi-press / lange druk / loslaten na lange druk); dubbel- en
+  driedubbele druk in een standaard ingeklapte Multi-press-sectie.
+  Input-keys `press_action` / `long_press_action` / `release_action`
+  ongewijzigd; nieuw `double_action` / `triple_action`.
+  `min_version: 2024.6.0` voor collapsed secties.
+- Diagnostic sensors per field module: **Model**, **Firmware**, and
+  **Last seen by gateway** (timestamp + `source` attribute: arp/http).
 
 ### Changed
 - Multi-press is **global** (gateway add-on option) — no per-button CONFIG
