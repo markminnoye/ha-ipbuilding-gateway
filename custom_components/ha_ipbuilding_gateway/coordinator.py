@@ -590,6 +590,12 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         elif msg_type == "button_event":
             # Button events go to all button entities; route by hardware id
             self._notify_button(data)
+        elif msg_type == "device_added":
+            if data.get("semantic_type") == "button":
+                self._handle_button_device_added(data)
+            else:
+                # Module discovery still lands via discovery_completed + REST.
+                log.debug("Ignoring non-button device_added: %s", data.get("id"))
         elif msg_type == "gateway_status":
             self._apply_gateway_status(data)
             self._notify_gateway()
@@ -602,6 +608,181 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.hass.async_create_task(self._refresh_after_discovery())
         else:
             log.debug("Unknown WS message type: %s", msg_type)
+
+    def _handle_button_device_added(self, data: dict[str, Any]) -> None:
+        """Create a button entity immediately from learn-on-press ``device_added``.
+
+        Must not go through the 2s snapshot debounce — the matching
+        ``button_event`` arrives next and needs a registered listener.
+        """
+        device_id = data.get("id")
+        if not device_id:
+            return
+
+        device: dict[str, Any] = {
+            "id": device_id,
+            "module_id": data.get("module_id") or "",
+            "module_ip": data.get("module_ip") or "",
+            "name": data.get("name") or f"Button {device_id}",
+            "room": data.get("room") or "",
+            "semantic_type": "button",
+            "device_type": data.get("device_type") or "input",
+            "channel": data.get("channel"),
+            "active": bool(data.get("active", True)),
+        }
+
+        already_known = device_id in self._data
+        self._data[device_id] = {**self._data.get(device_id, {}), **device}
+        if already_known:
+            return
+
+        active = bool(device["active"])
+        self._known_devices.add((device_id, active))
+        for _platform, cb in self._platform_callbacks.items():
+            try:
+                cb([device])
+            except Exception:
+                log.exception(
+                    "Platform callback failed for learned button %s", device_id,
+                )
+        self._notify_new_button(device)
+
+    def _notify_new_button(self, device: dict[str, Any]) -> None:
+        """Show a persistent notification so the operator can rename the button."""
+        self.hass.async_create_task(self._async_notify_new_button(device))
+
+    async def _resolve_button_ha_device_id(self, hw_id: str) -> str | None:
+        """Wait until HA has registered the learned button device, then return its id.
+
+        Prefer the device registry identifier ``(DOMAIN, hw_id)`` — that is
+        what ``build_channel_device_info`` sets. Fall back to the event entity
+        registry entry (``event.<hw_id>`` / unique_id ``event_<hw_id>``).
+        """
+        entity_id = f"event.{hw_id}"
+        unique_id = f"event_{hw_id}"
+
+        try:
+            from homeassistant.helpers import device_registry as dr
+            from homeassistant.helpers import entity_registry as er
+
+            dev_reg = dr.async_get(self.hass)
+            ent_reg = er.async_get(self.hass)
+        except Exception:
+            log.debug(
+                "Could not load registries for learned button %s",
+                hw_id,
+                exc_info=True,
+            )
+            return None
+
+        # Let async_add_entities finish registering the device + entity.
+        block = getattr(self.hass, "async_block_till_done", None)
+        if callable(block):
+            try:
+                await block()
+            except Exception:
+                pass
+
+        for _ in range(40):
+            try:
+                device = dev_reg.async_get_device(identifiers={(DOMAIN, hw_id)})
+                if device is not None and getattr(device, "id", None):
+                    return str(device.id)
+            except Exception:
+                pass
+
+            try:
+                entry = ent_reg.async_get(entity_id)
+                if entry is None:
+                    entry = ent_reg.async_get_entity_id("event", DOMAIN, unique_id)
+                    if isinstance(entry, str):
+                        entry = ent_reg.async_get(entry)
+                if entry is not None and getattr(entry, "device_id", None):
+                    return str(entry.device_id)
+            except Exception:
+                pass
+
+            if callable(block):
+                try:
+                    await block()
+                except Exception:
+                    pass
+            await asyncio.sleep(0.05)
+
+        return None
+
+    async def _async_notify_new_button(self, device: dict[str, Any]) -> None:
+        """Notify with a deep-link to the HA device page (name + area).
+
+        Recent frontends no longer open a single-entity editor for
+        ``/config/entities/entity/<id>``. Name + area live on the device page:
+        ``/config/devices/device/<device_id>``.
+        """
+        hw_id = str(device.get("id", ""))
+        entity_id = f"event.{hw_id}"
+        ha_device_id = await self._resolve_button_ha_device_id(hw_id)
+
+        path = (
+            f"/config/devices/device/{ha_device_id}"
+            if ha_device_id
+            else "/config/devices/dashboard"
+        )
+        # Absolute URL helps mobile / some notification surfaces.
+        try:
+            from homeassistant.helpers.network import get_url
+
+            link = f"{get_url(self.hass)}{path}"
+        except Exception:
+            link = path
+
+        language = str(getattr(self.hass.config, "language", "en") or "en").lower()
+        if ha_device_id:
+            if language.startswith("nl"):
+                title = "Nieuwe IPBuilding drukknop"
+                message = (
+                    f"Er is een nieuwe wandknop ontdekt (`{hw_id}`).\n\n"
+                    f"[Open apparaat-instellingen]({link}) om een naam "
+                    "en area toe te wijzen."
+                )
+            else:
+                title = "New IPBuilding button"
+                message = (
+                    f"A new wall button was discovered (`{hw_id}`).\n\n"
+                    f"[Open device settings]({link}) to set a name "
+                    "and area."
+                )
+        elif language.startswith("nl"):
+            title = "Nieuwe IPBuilding drukknop"
+            message = (
+                f"Er is een nieuwe wandknop ontdekt (`{hw_id}` / "
+                f"`{entity_id}`).\n\n"
+                f"Zoek deze entiteit onder "
+                f"[Instellingen → Apparaten]({link}) "
+                "om een naam en area toe te wijzen."
+            )
+        else:
+            title = "New IPBuilding button"
+            message = (
+                f"A new wall button was discovered (`{hw_id}` / "
+                f"`{entity_id}`).\n\n"
+                f"Find this entity under "
+                f"[Settings → Devices]({link}) "
+                "to set a name and area."
+            )
+
+        try:
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "title": title,
+                    "message": message,
+                    "notification_id": f"{DOMAIN}_button_{hw_id}",
+                },
+                blocking=False,
+            )
+        except Exception:
+            log.exception("Failed to create notification for button %s", hw_id)
 
     def _notify(self, entity_id: str, data: dict) -> None:
         """Notify listeners for a specific entity."""
