@@ -25,6 +25,12 @@ anders meldt.
 
 ## [Unreleased]
 
+### Added
+- **Nieuwe wandknop bij eerste druk.** Bij gateway `device_added` voor een
+  knop maakt de companion meteen een `event`-entiteit aan en toont een
+  melding met link naar de apparaatpagina (naam + area). Vereist een
+  gateway die learn-on-press ondersteunt (Unreleased / volgende minor).
+
 ## [1.8.0] - 2026-07-17
 
 ### Added
