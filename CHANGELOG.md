@@ -1,49 +1,33 @@
 # Changelog
 
-Alle notable wijzigingen aan deze custom component worden hier gedocumenteerd.
+All notable changes to this custom component are documented here.
 
-Het format is gebaseerd op [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/),
-en dit project volgt [Semantic Versioning](https://semver.org/lang/nl/).
-
-## Versiebeleid
-
-De `ipbuilding-gateway-ha` companion en de **IPBuilding Gateway** add-on
-volgen **onafhankelijk semver**. Een bump in de ene repo betekent
-niet automatisch een bump in de andere.
-
-- **Patch (0.3.x)**: cosmetisch, geen impact op de REST/WS wire.
-  Werkt met alle gateway-versies die de huidige wire ondersteunen.
-- **Minor (0.x.0)**: nieuwe velden of optionele WS-events. De oude
-  gateway blijft werken, maar de companion gebruikt de nieuwe
-  velden niet tenzij de gateway ze levert.
-- **Major (x.0.0)**: breaking change. De CHANGELOG bevat dan een
-  `### Breaking:` entry die de incompatibele combinaties opsomt.
-
-Backward compatibiliteit is de norm — een versie van deze companion
-blijft werken met de huidige gateway tot een `### Breaking:`-regel
-anders meldt.
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-08-06
+
 ### Added
-- **Nieuwe wandknop bij eerste druk.** Bij gateway `device_added` voor een
-  knop maakt de companion meteen een `event`-entiteit aan en toont een
-  melding met link naar de apparaatpagina (naam + area). Vereist een
-  gateway die learn-on-press ondersteunt (Unreleased / volgende minor).
+- **New wall button on first press.** When the gateway emits `device_added`
+  for a button, the companion creates an `event` entity immediately and
+  shows a notification linking to the device page (name + area). Requires
+  gateway ≥ **1.6.2** (learn-on-press).
 
 ## [1.8.0] - 2026-07-17
 
 ### Added
-- **Dubbele en driedubbele druk** — `double_press` / `triple_press` events,
-  device triggers (`double_pressed` / `triple_pressed`), en `count` in
-  event_data (gemapt naar HA-standaard `multi_press_end`). Vereist gateway
-  ≥ 1.6.0 met add-on **Dubbel- en driedubbelklik** aan.
-- Blueprint **`button_standard` v11** — Matter-achtige labels (korte druk /
-  multi-press / lange druk / loslaten na lange druk); dubbel- en
-  driedubbele druk in een standaard ingeklapte Multi-press-sectie.
-  Input-keys `press_action` / `long_press_action` / `release_action`
-  ongewijzigd; nieuw `double_action` / `triple_action`.
-  `min_version: 2024.6.0` voor collapsed secties.
+- **Double and triple press** — `double_press` / `triple_press` events,
+  device triggers (`double_pressed` / `triple_pressed`), and `count` in
+  event_data (mapped to HA standard `multi_press_end`). Requires gateway
+  ≥ 1.6.0 with the add-on **Double and triple click** option enabled.
+- Blueprint **`button_standard` v11** — Matter-like labels (short press /
+  multi-press / long press / release after long press); double and
+  triple press in a standard collapsed Multi-press section.
+  Input keys `press_action` / `long_press_action` / `release_action`
+  unchanged; new `double_action` / `triple_action`.
+  `min_version: 2024.6.0` for collapsed sections.
 - Diagnostic sensors per field module: **Model**, **Firmware**, and
   **Last seen by gateway** (timestamp + `source` attribute: arp/http).
 
@@ -66,45 +50,45 @@ anders meldt.
 ## [1.7.2] - 2026-06-23
 
 ### Added
-- **Tandwiel-menu: "Modules opzoeken op de veldbus"** — stuurt `POST /api/v1/discover` op de gateway en toont het resultaat (`{added} toegevoegd, {changed} bijgewerkt, {removed} verwijderd` + duur) in een vervolgscherm. Vervangt de noodzaak om de discover-knop op het gateway-apparaat te zoeken. Tot ~120 s timeout (zelfde budget als de bestaande knop).
-- **Tandwiel-menu: "Knoppen en module-info bijwerken"** — stuurt `POST /api/v1/modules/refresh` op de gateway en toont het aantal bijgewerkte modules en knoppen. Gebruik dit nadat je een wandknop of IP1100PoE-instelling op de module zelf hebt gewijzigd; de gateway pusht dan een WS-snapshot zodat de companion nieuwe namen/drempels oppikt zonder integratie-reload. Vindt **geen** nieuwe modules — daarvoor blijft *Modules opzoeken*.
+- **Gear menu: "Scan field bus for modules"** — sends `POST /api/v1/discover` to the gateway and shows the result (`{added} added, {changed} updated, {removed} removed` + duration) in a follow-up screen. Replaces the need to find the discover button on the gateway device. Up to ~120 s timeout (same budget as the existing button).
+- **Gear menu: "Refresh buttons and module info"** — sends `POST /api/v1/modules/refresh` to the gateway and shows the number of updated modules and buttons. Use this after changing a wall button or IP1100PoE setting on the module itself; the gateway then pushes a WS snapshot so the companion picks up new names/thresholds without an integration reload. Does **not** find new modules — use *Scan field bus for modules* for that.
 
 ### Changed
-- **`button.ipbuilding_gateway_run_discovery_sweep` hernoemd** van "Run discovery sweep" / "Discovery sweep starten" naar "Scan field bus for modules" / "Modules opzoeken op de veldbus" zodat de naam consistent is met het nieuwe menu-item. Geen functionele wijziging.
+- **`button.ipbuilding_gateway_run_discovery_sweep` renamed** from "Run discovery sweep" / "Discovery sweep starten" to "Scan field bus for modules" / "Modules opzoeken op de veldbus" so the name matches the new menu item. No functional change.
 
 ### Fixed
-- **HA 2026.6 update-listener reload** — config flow gebruikt `reload_on_update=False`; de update listener plant reload via `async_schedule_reload` i.p.v. `async_reload`. Voorkomt dubbele reload en de deprecation-warning die vanaf HA 2026.12 een error wordt.
+- **HA 2026.6 update-listener reload** — config flow uses `reload_on_update=False`; the update listener schedules reload via `async_schedule_reload` instead of `async_reload`. Prevents a double reload and the deprecation warning that becomes an error from HA 2026.12.
 
 ## [1.7.1] - 2026-06-23
 
 ### Added
-- **`button_standard` v9 (universele 3-slot blueprint)** — derde actie-slot `Loslaten` toegevoegd (vuurt alleen op release ná een lange druk). Secties heten nu **Indrukken / Vasthouden / Loslaten**, waarbij Vasthouden en Loslaten optioneel zijn. De blueprint kan nu ook een dimmer volledig configureren (`light.toggle` / `dim_start` / `dim_stop`) zonder dat een aparte `button_dim`-blueprint nodig is — die blijft bestaan als preset. Blueprint-naam gewijzigd naar **"IPBuilding wandknop"**. `mode:` van `single` naar `queued` (twee triggers per vasthouden moeten in volgorde lopen). Bestaande instanties blijven werken: `release_action` default is `[]` en de nieuwe trigger is gescopet met `from: "long_press"`.
+- **`button_standard` v9 (universal 3-slot blueprint)** — third action slot `Release` added (fires only on release after a long press). Sections are now named **Press / Hold / Release**, with Hold and Release optional. The blueprint can now fully configure a dimmer (`light.toggle` / `dim_start` / `dim_stop`) without needing a separate `button_dim` blueprint — that remains as a preset. Blueprint name changed to **"IPBuilding wandknop"**. `mode:` changed from `single` to `queued` (two triggers per hold must run in order). Existing instances keep working: `release_action` default is `[]` and the new trigger is scoped with `from: "long_press"`.
 
 ### Changed
-- **Blueprint-teksten gereviseerd** — `button_standard` v9, `button_dim` v8 en `button_dim_stepwise` v1 zijn inhoudelijk op elkaar afgestemd. De `Knop` en `Lamp` input-beschrijvingen zijn geüniformeerd; de "Geen helper nodig"-zin in `button_dim` is weg; de Matter-patroon-verwijzing in de Loslaten-beschrijving is ingekort. Geen gedragswijziging.
-- **Versie-header onderaan** — vanaf 1.7.1 staat de `# ipbuilding_blueprint_version: N`-regel onderaan de blueprint-file in kleine letters, niet meer bovenaan. De sync in `blueprints.py` scant nu de hele file. De `**Blueprint-versie: N.**`-marker in de description (operator-zichtbaar in HA) blijft ongewijzigd.
-- **Dim-blueprint beschrijvingen verduidelijkt** — `button_dim` is expliciet gemarkeerd als aanbevolen native variant; `button_dim_stepwise` als experimenteel alternatief met `input_boolean`-helper (HA 2026.3 helper-create caveat van toepassing).
+- **Blueprint copy revised** — `button_standard` v9, `button_dim` v8 and `button_dim_stepwise` v1 are aligned in content. The `Knop` and `Lamp` input descriptions are unified; the "No helper needed" sentence in `button_dim` is gone; the Matter-pattern reference in the Release description is shortened. No behaviour change.
+- **Version header at the bottom** — from 1.7.1 the `# ipbuilding_blueprint_version: N` line sits at the bottom of the blueprint file in lowercase, no longer at the top. Sync in `blueprints.py` now scans the whole file. The `**Blueprint-versie: N.**` marker in the description (operator-visible in HA) is unchanged.
+- **Dim blueprint descriptions clarified** — `button_dim` is explicitly marked as the recommended native variant; `button_dim_stepwise` as an experimental alternative with an `input_boolean` helper (HA 2026.3 helper-create caveat applies).
 
 ### Breaking
-- **`dim_button.yaml` is verwijderd uit de companion.** De deprecation-stub die sinds 0.5.0 in het package zat is niet meer meegeleverd. Bestaande automations die deze blueprint referencen stoppen met werken zodra de stub uit `config/blueprints/automation/ha_ipbuilding_gateway/` is verwijderd. Migreer door een nieuwe automatisering te maken vanuit `button_dim` (of `button_dim_stepwise` als je de HA-stapsgewijze variant wilt) en de oude uit te zetten. Vóór deze release bestond de stub alleen nog als back-compat voor installaties die in de 0.5.0-tijd zijn begonnen.
+- **`dim_button.yaml` has been removed from the companion.** The deprecation stub shipped since 0.5.0 is no longer included. Existing automations that reference this blueprint stop working once the stub is removed from `config/blueprints/automation/ha_ipbuilding_gateway/`. Migrate by creating a new automation from `button_dim` (or `button_dim_stepwise` if you want the HA stepwise variant) and disabling the old one. Before this release the stub existed only as back-compat for installs that started in the 0.5.0 era.
 
 ## [1.7.0] - 2026-06-23
 
 ### Added
-- **`ha_ipbuilding_gateway.dim_start` en `ha_ipbuilding_gateway.dim_stop` services** (entity-targeted, alleen `light.`). Starten/stoppen de native hold-to-dim ramp op een IP0300PoE-kanaal via de gateway-acties `DIM_START` / `DIM_STOP`. De IP0300PoE dimt zelf en draait de richting automatisch om bij elke volgende hold — geen `repeat`-lus, geen helper, geen step-configuratie in HA meer. Vereist gateway add-on met `DIM_START`/`DIM_STOP`-ondersteuning (branch `feature/dimmer-downstream-td`, gateway ≥ **1.1.0**).
-- **`button_dim` v8** gebruikt de nieuwe services i.p.v. de oude `repeat` + `brightness_step_pct` + `direction_helper` + endpoint-trigger logica. Korte druk → `light.toggle`, vasthouden → `dim_start`, loslaten na hold → `dim_stop`. De `direction_helper` / `dim_step_pct` / `dim_interval_ms` / `dim_boundary_pct` inputs zijn verwijderd.
-- **`button_dim_stepwise` blueprint (alternatief)** — de oude HA-gestuurde, stapsgewijze dim-loop (met `input_boolean` richting-helper) blijft beschikbaar als apart alternatief voor wie de native ramp niet wil. Native `button_dim` blijft de aanbevolen keuze.
+- **`ha_ipbuilding_gateway.dim_start` and `ha_ipbuilding_gateway.dim_stop` services** (entity-targeted, `light.` only). Start/stop the native hold-to-dim ramp on an IP0300PoE channel via the gateway actions `DIM_START` / `DIM_STOP`. The IP0300PoE dims itself and automatically reverses direction on each subsequent hold — no `repeat` loop, no helper, no step configuration in HA. Requires a gateway add-on with `DIM_START`/`DIM_STOP` support (branch `feature/dimmer-downstream-td`, gateway ≥ **1.1.0**).
+- **`button_dim` v8** uses the new services instead of the old `repeat` + `brightness_step_pct` + `direction_helper` + endpoint-trigger logic. Short press → `light.toggle`, hold → `dim_start`, release after hold → `dim_stop`. The `direction_helper` / `dim_step_pct` / `dim_interval_ms` / `dim_boundary_pct` inputs are removed.
+- **`button_dim_stepwise` blueprint (alternative)** — the old HA-driven, stepwise dim loop (with `input_boolean` direction helper) remains available as a separate alternative for anyone who does not want the native ramp. Native `button_dim` remains the recommended choice.
 
 ### Changed
-- **Dimmer-`light.toggle` gebruikt nu het native `TOGGLE`-commando** (`T<ch>991000`) i.p.v. `DIM <laatste>` / `DIM 0`. De light-entity overschrijft `async_toggle`: een korte druk (en elke `light.toggle`) schakelt via het eigen laatst-niveau-geheugen van de IP0300PoE — robuust ook als HA's gecachte helderheid verouderd is (bv. na een peer-knopdruk die de gateway niet zag). Relays en geparametriseerde toggles vallen terug op het standaardgedrag.
+- **Dimmer `light.toggle` now uses the native `TOGGLE` command** (`T<ch>991000`) instead of `DIM <last>` / `DIM 0`. The light entity overrides `async_toggle`: a short press (and every `light.toggle`) switches via the IP0300PoE’s own last-level memory — robust even when HA’s cached brightness is stale (e.g. after a peer button press the gateway did not see). Relays and parameterised toggles fall back to default behaviour.
 
 ## [1.6.0] - 2026-06-22
 
 ### Removed
-- **`button_cover` blueprint** — ongevalideerd voorbeeld zonder cover-hardware in de testopstelling. Hold-to-move / release-to-stop hoort in een eigen automatisering (device triggers op `long_press` + `release`) of via `button_standard` voor eenvoudig open/sluiten op druk.
+- **`button_cover` blueprint** — unvalidated example without cover hardware in the test setup. Hold-to-move / release-to-stop belongs in a dedicated automation (device triggers on `long_press` + `release`) or via `button_standard` for simple open/close on press.
 
 ### Breaking
-- **`button_cover` is no longer shipped.** Bestaande instanties op een lokale kopie in `config/blueprints/…/button_cover.yaml` blijven werken tot je die file verwijdert. Voor gordijnen: `long_press` → `cover.open_cover` / `cover.close_cover`, `release` → `cover.stop_cover` op de knop-event-entity.
+- **`button_cover` is no longer shipped.** Existing instances on a local copy in `config/blueprints/…/button_cover.yaml` keep working until you delete that file. For curtains: `long_press` → `cover.open_cover` / `cover.close_cover`, `release` → `cover.stop_cover` on the button event entity.
 
 ## [1.5.0] - 2026-06-22
 
@@ -112,302 +96,302 @@ anders meldt.
 - **`button_scene` blueprint** — redundant with `button_standard`, which already supports `scene.turn_on` (and mixed actions) via the action-editor. New installs no longer receive this file from the companion package.
 
 ### Breaking
-- **`button_scene` is no longer shipped.** Bestaande automation-instanties die op een eerder gesynchroniseerde kopie in `config/blueprints/…/button_scene.yaml` draaien blijven werken tot je die file verwijdert. Voor nieuwe knop→scene-mappings: gebruik `button_standard` en kies bij korte/lang druk de actie **Scène: Activeren**.
+- **`button_scene` is no longer shipped.** Existing automation instances that still run on a previously synced copy in `config/blueprints/…/button_scene.yaml` keep working until you delete that file. For new button→scene mappings: use `button_standard` and choose the **Scene: Activate** action for short/long press.
 
 ## [1.4.1] - 2026-06-22
 
 ### Fixed
-- **Race tussen `single_press` en de trailing `release` in `button_dim` (v6 → v7) en `button_cover` (v6 → v7).** De gateway stuurt bij een korte tik `single_press` én `release` vlak na elkaar. De top-level `release`-trigger reageerde óók op die korte-druk-release: in `button_dim` (`mode: restart`) kon dat de net gestarte `single_press`-toggle cancellen (korte druk deed dan niets); in `button_cover` (`mode: single`) kon de trailing release een geconfigureerde korte-druk-actie ongedaan maken via `cover.stop_cover`. De `release`-trigger is nu gescopet met `from: "long_press"`, zodat hij alléén vuurt op een release die een hold afsluit (loop stoppen + richting flippen / cover stoppen). `button_scene` had dit probleem niet (geen release-trigger).
+- **Race between `single_press` and the trailing `release` in `button_dim` (v6 → v7) and `button_cover` (v6 → v7).** On a short tap the gateway sends `single_press` and `release` in quick succession. The top-level `release` trigger also reacted to that short-press release: in `button_dim` (`mode: restart`) that could cancel the just-started `single_press` toggle (short press then did nothing); in `button_cover` (`mode: single`) the trailing release could undo a configured short-press action via `cover.stop_cover`. The `release` trigger is now scoped with `from: "long_press"`, so it only fires on a release that ends a hold (stop the loop + flip direction / stop the cover). `button_scene` did not have this problem (no release trigger).
 
 ### Added
-- **`button_scene` v4 / `button_dim` v7 / `button_cover` v7** triggeren nu direct op `single_press` en `long_press` — geen `wait_for_trigger` of raw `press`-abonnement meer. Evenknie van de `button_standard` v7 wijziging uit v1.3.0. De gateway classificeert de druk zelf, dus de race tussen raw `press` en `long_press` is weg.
-- **`single_press` als entity-state vertaling** in `entity.event.button.state` voor zowel EN als NL. Na v1.3.0 vuurde de EventEntity al het `single_press`-event, maar de UI toonde "Unknown" als state omdat de vertaling ontbrak. Korte drukken tonen nu correct "Single pressed" / "Kort ingedrukt".
+- **`button_scene` v4 / `button_dim` v7 / `button_cover` v7** now trigger directly on `single_press` and `long_press` — no more `wait_for_trigger` or raw `press` subscription. Counterpart of the `button_standard` v7 change from v1.3.0. The gateway classifies the press itself, so the race between raw `press` and `long_press` is gone.
+- **`single_press` as entity-state translation** in `entity.event.button.state` for both EN and NL. After v1.3.0 the EventEntity already fired the `single_press` event, but the UI showed "Unknown" as state because the translation was missing. Short presses now correctly show "Single pressed" / "Kort ingedrukt".
 
 ### Changed
-- **`button_dim` v5 → v7**: `wait_for_trigger` met 600 ms timeout op de press-branch is weg; de toggle hangt nu direct aan het `single_press`-event. De `release`-trigger is gescopet met `from: "long_press"` (zie Fixed). De release-flip-guard (`trigger.from_state.attributes.event_type == 'long_press'`) blijft — een korte-druk-release mag de dim-richting niet flippen.
-- **`button_scene` v3 → v4**: top-level `single_press` trigger vervangt de raw `press` trigger. `long_press` ongewijzigd.
-- **`button_cover` v5 → v7**: top-level `single_press` trigger vervangt de raw `press` trigger voor de optionele korte-druk actie; de `release`-trigger is gescopet met `from: "long_press"` (zie Fixed).
+- **`button_dim` v5 → v7**: `wait_for_trigger` with 600 ms timeout on the press branch is gone; the toggle now hangs directly off the `single_press` event. The `release` trigger is scoped with `from: "long_press"` (see Fixed). The release flip guard (`trigger.from_state.attributes.event_type == 'long_press'`) remains — a short-press release must not flip the dim direction.
+- **`button_scene` v3 → v4**: top-level `single_press` trigger replaces the raw `press` trigger. `long_press` unchanged.
+- **`button_cover` v5 → v7**: top-level `single_press` trigger replaces the raw `press` trigger for the optional short-press action; the `release` trigger is scoped with `from: "long_press"` (see Fixed).
 
 ### Tests
-- `test_dim_blueprint_waits_on_press_before_toggling`, `test_dim_blueprint_short_press_continues_on_timeout` en `test_scene_blueprint_activates_scenes_on_press_and_long_press` zijn bijgewerkt om het v6-contract af te dwingen: geen `wait_for_trigger`, directe `single_press`-trigger, geen raw `press` in de scene-blueprint.
+- `test_dim_blueprint_waits_on_press_before_toggling`, `test_dim_blueprint_short_press_continues_on_timeout` and `test_scene_blueprint_activates_scenes_on_press_and_long_press` are updated to enforce the v6 contract: no `wait_for_trigger`, direct `single_press` trigger, no raw `press` in the scene blueprint.
 
-### Migratie
-- Bestaande automation-instanties van `button_scene`, `button_dim` en `button_cover` blijven werken: de input-namen zijn ongewijzigd (`press_scene`, `long_press_scene`, `target_light`, `direction_helper`, `cover_entity`, `hold_direction`, `release_action`, `press_action`). `blueprints.py` synchroniseert de blueprint-bestanden zelf, de input-mapping blijft 1-op-1.
+### Migration
+- Existing automation instances of `button_scene`, `button_dim` and `button_cover` keep working: input names are unchanged (`press_scene`, `long_press_scene`, `target_light`, `direction_helper`, `cover_entity`, `hold_direction`, `release_action`, `press_action`). `blueprints.py` syncs the blueprint files themselves; the input mapping stays 1-to-1.
 
-### Vereisten
-- Gateway ≥ **1.1.0** voor de `single_press`-events. Oudere gateways sturen geen `single_press`; in dat geval vuurt de nieuwe `button_dim` v6 toggle nooit en moet de operator terugvallen op een oudere blueprint of de gateway updaten.
+### Requirements
+- Gateway ≥ **1.1.0** for the `single_press` events. Older gateways do not send `single_press`; in that case the new `button_dim` v6 toggle never fires and the operator must fall back to an older blueprint or update the gateway.
 
 ## [1.3.0] - 2026-06-21
 
 ### Added
-- **`single_press` button event + `single_pressed` device trigger.** De gateway classificeert een korte druk nu zelf: `single_press` bij loslaten onder de drempel, `long_press` bij overschrijding van de drempel. De companion voegt `single_press` toe aan de EventEntity event-types, vuurt `ha_ipbuilding_gateway.button_single_pressed` op de HA bus, en tagt de gesture-events met hun HA/Matter-standaard naam in `event_data` (`press` → `press_start`, `single_press` → `press_end`, `long_press` → `long_press_start`). De raw `release` blijft bewust ongetagd (volgt zowel korte als lange druk, dus geen eenduidig standaard-equivalent). De automation-editor toont een nieuwe "Single pressed" device trigger. Vereist gateway ≥ 1.1.0 om de nieuwe `single_press`-events te ontvangen.
+- **`single_press` button event + `single_pressed` device trigger.** The gateway now classifies a short press itself: `single_press` on release under the threshold, `long_press` when the threshold is exceeded. The companion adds `single_press` to the EventEntity event types, fires `ha_ipbuilding_gateway.button_single_pressed` on the HA bus, and tags gesture events with their HA/Matter standard name in `event_data` (`press` → `press_start`, `single_press` → `press_end`, `long_press` → `long_press_start`). Raw `release` stays deliberately untagged (follows both short and long press, so no unambiguous standard equivalent). The automation editor shows a new "Single pressed" device trigger. Requires gateway ≥ 1.1.0 to receive the new `single_press` events.
 
 ### Changed
-- **`button_standard`-blueprint (v7)** triggeren nu direct op `single_press` en `long_press` — geen `wait_for_trigger` met 600 ms timeout meer. De gateway doet de press-vs-long-press-disambiguatie, dus de race tussen 600 ms timeout en de 1,5 s standaard hold-drempel is weg. Vereist gateway ≥ 1.1.0.
+- **`button_standard` blueprint (v7)** now triggers directly on `single_press` and `long_press` — no more `wait_for_trigger` with a 600 ms timeout. The gateway does press-vs-long-press disambiguation, so the race between the 600 ms timeout and the 1.5 s default hold threshold is gone. Requires gateway ≥ 1.1.0.
 
 ### Breaking
-- **`button_standard` v7 verwijdert oude inputs** (`automation_name`, `automation_area`, `press_target`, `long_press_target` en de select-acties) ten gunste van volledige action-selectors. Bestaande automation-**instanties** op een eerdere `button_standard`-versie blijven verwijzen naar niet-bestaande inputs en moeten **opnieuw aangemaakt** worden na de update.
+- **`button_standard` v7 removes old inputs** (`automation_name`, `automation_area`, `press_target`, `long_press_target` and the select actions) in favour of full action selectors. Existing automation **instances** on an earlier `button_standard` version still point at non-existent inputs and must be **recreated** after the update.
 
 ### Fixed
-- **Blueprint triggers vuurden niet op event entities.** Alle
-  state-triggers in de meegeleverde blueprints (`button_toggle`,
+- **Blueprint triggers did not fire on event entities.** All
+  state triggers in the packaged blueprints (`button_toggle`,
   `button_standard`, `button_dim`, `button_cover`, `button_scene`,
-  `dim_button`) filterden op `to: "press"` / `"long_press"` /
-  `"release"` tegen de `state`, terwijl die voor event entities een
-  timestamp bevat. Het event-type leeft op `attributes.event_type`.
-  Hierdoor vuurde bv. "Hal R → bureau toggle" nooit, terwijl de native
-  HA-automations (device-trigger) wel werkten. Triggers zijn voorzien
-  van `attribute: event_type` + `not_from: [unavailable, unknown]`.
-  In `button_dim` zijn ook de templates aangepast die `trigger.state`
-  vergeleken met event-namen.
-- **Versie-bumps** van alle blueprints (4 → 5 voor `button_toggle`,
-  2 → 3 voor `button_standard`, 3 → 4 voor `button_cover` en
-  `button_dim`, 1 → 2 voor `button_scene` en `dim_button` stub) zodat
+  `dim_button`) filtered on `to: "press"` / `"long_press"` /
+  `"release"` against `state`, while for event entities that
+  contains a timestamp. The event type lives on `attributes.event_type`.
+  As a result e.g. "Hal R → bureau toggle" never fired, while native
+  HA automations (device trigger) did work. Triggers now have
+  `attribute: event_type` + `not_from: [unavailable, unknown]`.
+  In `button_dim`, templates that compared `trigger.state`
+  to event names were also updated.
+- **Version bumps** of all blueprints (4 → 5 for `button_toggle`,
+  2 → 3 for `button_standard`, 3 → 4 for `button_cover` and
+  `button_dim`, 1 → 2 for `button_scene` and `dim_button` stub) so
   [`blueprints.py`](custom_components/ha_ipbuilding_gateway/blueprints.py)
-  de upgrade-sync triggert op bestaande HA-installaties.
-- **`button_standard.yaml` press/long_press onderscheid.** Bij een
-  lange druk vuurde zowel de press- als de long_press-actie: de
-  gateway broadcastt direct `press` en (na de hold-drempel) opnieuw
-  `long_press`, dus twee top-level triggers vuurden achter elkaar.
-  Het action-blok gebruikt nu het `wait_for_trigger`-patroon uit
+  triggers upgrade sync on existing HA installs.
+- **`button_standard.yaml` press/long_press distinction.** On a
+  long press both the press and long_press actions fired: the
+  gateway broadcasts `press` immediately and (after the hold threshold)
+  `long_press` again, so two top-level triggers fired in sequence.
+  The action block now uses the `wait_for_trigger` pattern from
   [`button_dim.yaml`](custom_components/ha_ipbuilding_gateway/blueprints/automation/ha_ipbuilding_gateway/button_dim.yaml):
-  één trigger op `press`, 600 ms wachten op `release` of `long_press`,
-  en pas daarna de juiste actie kiezen. Korte drukken gedragen zich
-  identiek; lange drukken voeren alleen nog de long_press-actie uit.
-  Versie-bump 3 → 4.
-- **`button_standard.yaml` timeout `UndefinedError`** (v4 had een
-  tikfout in de guard). Home Assistant zet `wait.trigger` op `none`
-  bij timeout — **niet** de hele `wait`-variabele. De v4-guard
-  `wait is none` sloeg daardoor nooit aan op het timeout-pad, en de
-  daaropvolgende `wait.trigger.to_state.attributes.event_type`-access
-  op `none` gooide `UndefinedError: 'None' has no attribute 'to_state'`
-  in de log bij elke korte druk. v5 volgt de community-conventie
-  (HA-forum + Awesome HA Blueprints): `wait.trigger is none` voor
-  het timeout-pad (→ press-actie als zachte fallback) en
-  `wait.trigger is not none` voor het event-pad. Pattern is
-  identiek aan wat `button_dim.yaml` al deed. Versie-bump 4 → 5.
-- **`button_dim.yaml` korte-druk deed niets bij ontbrekende follow-up.**
-  De short-press `wait_for_trigger` had geen `continue_on_timeout: true`,
-  en de guard was `wait.trigger is not none and ... == 'release'`. Wanneer
-  de gateway om welke reden dan ook geen `release` of `long_press`
-  binnen 600 ms stuurde (trage bus, race, firmware-bug), stopte HA de
-  automation op timeout en draaide de toggle nooit — de operator
-  drukte op de knop en er gebeurde niets. v5 voegt
-  `continue_on_timeout: true` toe plus een `wait.trigger is none`
-  fallback-tak die alsnog de toggle uitvoert (Hue-style: de operator
-  verwacht feedback). Versie-bump 4 → 5 (`button_dim.yaml`).
-- **`button_standard.yaml` v6 — action-selector voor volledige vrijheid.**
-  De v5-fixed `select:` (Geen / Aan / Uit / Toggle / Scene activeren)
-  + `target:`-selector per fase zijn vervangen door één `selector:
-  action:`-input per fase. De operator krijgt nu de volledige HA
-  action-editor (zoals bij een gewone automation) en kan elke service,
-  elk doel en alle data (brightness, transition, helpers, scripts,
-  notificaties, …) zelf kiezen. De blueprint disambigueert alleen nog
-  press vs long press; de scene-guard (`press_has_scene` /
-  `long_press_has_scene`) en de vaste service-keuzes verdwijnen.
-  Pattern volgt de HA-community-conventie: `sequence: !input
-  press_action` in een `choose:`-tak. Versie-bump 5 → 6. Bestaande
-  "Hal R → Bureau"-instanties verliezen hun `press_target`-referentie;
-  heraanmaken van de automation vanaf deze blueprint is nodig
-  (`blueprints.py` synchroniseert het bestand zelf, maar de input-
-  namen zijn gewijzigd).
+  one trigger on `press`, wait 600 ms for `release` or `long_press`,
+  then choose the correct action. Short presses behave
+  identically; long presses only run the long_press action.
+  Version bump 3 → 4.
+- **`button_standard.yaml` timeout `UndefinedError`** (v4 had a
+  typo in the guard). Home Assistant sets `wait.trigger` to `none`
+  on timeout — **not** the whole `wait` variable. The v4 guard
+  `wait is none` therefore never matched the timeout path, and the
+  subsequent `wait.trigger.to_state.attributes.event_type` access
+  on `none` threw `UndefinedError: 'None' has no attribute 'to_state'`
+  in the log on every short press. v5 follows the community convention
+  (HA forum + Awesome HA Blueprints): `wait.trigger is none` for
+  the timeout path (→ press action as soft fallback) and
+  `wait.trigger is not none` for the event path. Pattern is
+  identical to what `button_dim.yaml` already did. Version bump 4 → 5.
+- **`button_dim.yaml` short press did nothing when follow-up was missing.**
+  The short-press `wait_for_trigger` had no `continue_on_timeout: true`,
+  and the guard was `wait.trigger is not none and ... == 'release'`. When
+  the gateway for any reason did not send `release` or `long_press`
+  within 600 ms (slow bus, race, firmware bug), HA stopped the
+  automation on timeout and never ran the toggle — the operator
+  pressed the button and nothing happened. v5 adds
+  `continue_on_timeout: true` plus a `wait.trigger is none`
+  fallback branch that still runs the toggle (Hue-style: the operator
+  expects feedback). Version bump 4 → 5 (`button_dim.yaml`).
+- **`button_standard.yaml` v6 — action selector for full freedom.**
+  The v5-fixed `select:` (None / On / Off / Toggle / Activate scene)
+  + `target:` selector per phase are replaced by one `selector:
+  action:` input per phase. The operator now gets the full HA
+  action editor (as with a normal automation) and can choose any service,
+  any target and all data (brightness, transition, helpers, scripts,
+  notifications, …). The blueprint only still disambiguates
+  press vs long press; the scene guard (`press_has_scene` /
+  `long_press_has_scene`) and fixed service choices are gone.
+  Pattern follows the HA community convention: `sequence: !input
+  press_action` in a `choose:` branch. Version bump 5 → 6. Existing
+  "Hal R → Bureau" instances lose their `press_target` reference;
+  recreating the automation from this blueprint is required
+  (`blueprints.py` syncs the file itself, but the input
+  names have changed).
 
 ### Changed
-- **`button_toggle` v5**: terug naar de **`target:`-selector** (HA
-  Motion-activated Light UX). De `entity:`-selector uit v2/v4 was
-  te nauw voor de dominante operator-flow ("toggle de lamp(en) in
-  deze ruimte"). `light_target` accepteert nu één of meerdere
-  entiteiten, een apparaat of een hele ruimte via de tabs Entiteit /
-  Apparaat / Ruimte. De actie geeft het input rechtstreeks door
-  (`target: !input light_target`) zodat meerdere doelen of een
-  area-toggle ondersteund worden.
+- **`button_toggle` v5**: back to the **`target:` selector** (HA
+  Motion-activated Light UX). The `entity:` selector from v2/v4 was
+  too narrow for the dominant operator flow ("toggle the light(s) in
+  this room"). `light_target` now accepts one or more
+  entities, a device or a whole area via the Entity /
+  Device / Area tabs. The action passes the input straight through
+  (`target: !input light_target`) so multiple targets or an
+  area toggle are supported.
 
 ### Tests
-- `test_toggle_blueprint_uses_target_selector` vervangt de
-  omgekeerde entity-only test.
+- `test_toggle_blueprint_uses_target_selector` replaces the
+  inverted entity-only test.
 - `test_button_blueprints_use_event_type_attribute_on_triggers` is
-  een nieuwe regression-test die voor elke blueprint afdwingt dat
-  `attribute: event_type` op de trigger staat.
-- Dim-template-assertions verwijzen nu naar
-  `attributes.event_type` in plaats van `state`.
+  a new regression test that for every blueprint asserts
+  `attribute: event_type` is on the trigger.
+- Dim template assertions now refer to
+  `attributes.event_type` instead of `state`.
 
-### Migratie
-- Bestaande automations die vanuit de oude `button_toggle`-blueprint
-  zijn aangemaakt behouden hun opgeslagen YAML (inclusief het foute
-  `to: "press"` zonder `attribute`); die moeten **opnieuw
-  aangemaakt** worden of handmatig de trigger + target fixen. De
-  blueprint-sync upgrade't alleen het blueprint-bestand zelf.
-- Legacy `ipbuilding_gateway_ha/button_toggle.yaml` op HA kan
-  handmatig verwijderd worden; de v5-versie staat onder
+### Migration
+- Existing automations created from the old `button_toggle` blueprint
+  keep their saved YAML (including the incorrect
+  `to: "press"` without `attribute`); those must be **recreated**
+  or have the trigger + target fixed manually. Blueprint sync
+  only upgrades the blueprint file itself.
+- Legacy `ipbuilding_gateway_ha/button_toggle.yaml` on HA can
+  be deleted manually; the v5 version lives under
   `ha_ipbuilding_gateway/`.
 
 ### Removed
-- **`button_toggle.yaml`** — verwijderd. De combinatie van
-  `button_standard` met de action-selector (kies
-  `homeassistant.toggle` als service op een `target:` van lampen /
-  schakelaars / ruimte) dekt dezelfde flow met meer vrijheid. Geen
-  nieuwe instanties meer vanuit deze blueprint; bestaande
-  automations blijven werken op hun opgeslagen YAML tot de
-  operator ze verwijdert of heraanmaakt vanuit
+- **`button_toggle.yaml`** — removed. Combining
+  `button_standard` with the action selector (choose
+  `homeassistant.toggle` as service on a `target:` of lights /
+  switches / area) covers the same flow with more freedom. No
+  new instances from this blueprint; existing
+  automations keep working on their saved YAML until the
+  operator deletes them or recreates them from
   `button_standard.yaml`.
 
 ## [1.2.2] - 2026-06-19
 
 ### Changed
-- **Integration heet nu "IPBuilding Gateway"** in plaats van "IPBuilding Gateway Companion". De `manifest.json` `name` is bijgewerkt; de device-tree in de Companion blijft gateway → module → kanaal.
+- **Integration is now named "IPBuilding Gateway"** instead of "IPBuilding Gateway Companion". The `manifest.json` `name` is updated; the device tree in the Companion remains gateway → module → channel.
 
 ### Added
-- **Discovery TXT schema v2**: nieuwe TXT-velden `sw` (alias van `version`), `host`, `port` en `mac` worden nu gelezen. `DISCOVERY_SCHEMA_VERSION` is gebumped naar 2.
-- **`mac` en `sw_version` in `GatewayDiscoveryInfo`**. Lege `mac` wordt als `None` doorgegeven (Supervisor add-on heeft geen unieke interface-MAC).
+- **Discovery TXT schema v2**: new TXT fields `sw` (alias of `version`), `host`, `port` and `mac` are now read. `DISCOVERY_SCHEMA_VERSION` is bumped to 2.
+- **`mac` and `sw_version` in `GatewayDiscoveryInfo`**. Empty `mac` is passed as `None` (Supervisor add-on has no unique interface MAC).
 
 ### Changed
-- **mDNS-first discovery** (zoals Shelly). `async_step_zeroconf` werkt nu ook voor Supervisor add-ons — de duplicate-guard `already_discovered_addon` is verwijderd. Beide discovery-paden (zeroconf en HassIO) gebruiken dezelfde `async_step_confirm` step.
-- **Naamgeving bij toevoegen (D3)**: één nieuwe `confirm` step vervangt `hassio_confirm` en `discovery_confirm`. Default naam = eerste 8 tekens van `instance_id` (of `gateway` als fallback), operator kan deze aanpassen. De gekozen naam komt in de config-entry title (`IPBuilding Gateway (<naam>)`) en in de `flow_title` van de Discovered-card.
-- **`async_step_hassio` leest nu `instance_id`** uit de Supervisor `config` payload, zodat de unique_id tussen zeroconf en HassIO discovery aligned is. De fallback is het Supervisor discovery UUID.
-- **Translaties**: nieuwe `flow_title` en `confirm` step in `strings.json`, `translations/nl.json` en `translations/en.json`. De placeholders `{addon}`, `{version}`, `{url}` en `{name}` worden nu in één beschrijvingsblok gebruikt.
+- **mDNS-first discovery** (like Shelly). `async_step_zeroconf` now also works for Supervisor add-ons — the duplicate guard `already_discovered_addon` is removed. Both discovery paths (zeroconf and HassIO) use the same `async_step_confirm` step.
+- **Naming on add (D3)**: one new `confirm` step replaces `hassio_confirm` and `discovery_confirm`. Default name = first 8 characters of `instance_id` (or `gateway` as fallback); the operator can change it. The chosen name goes into the config-entry title (`IPBuilding Gateway (<name>)`) and into the `flow_title` of the Discovered card.
+- **`async_step_hassio` now reads `instance_id`** from the Supervisor `config` payload, so the unique_id between zeroconf and HassIO discovery is aligned. Fallback is the Supervisor discovery UUID.
+- **Translations**: new `flow_title` and `confirm` step in `strings.json`, `translations/nl.json` and `translations/en.json`. Placeholders `{addon}`, `{version}`, `{url}` and `{name}` are now used in one description block.
 
 ### Tests
-- Nieuwe tests: `tests/test_discovery_parser.py` (schema v2 + mac + sw-fallback) en `tests/test_config_flow_confirm.py` (default naam truncatie, `flow_title` template, refactor smoke-tests).
+- New tests: `tests/test_discovery_parser.py` (schema v2 + mac + sw fallback) and `tests/test_config_flow_confirm.py` (default name truncation, `flow_title` template, refactor smoke tests).
 
-### Vereisten
-- Gateway ≥ **1.0.4** om de nieuwe TXT-velden te gebruiken. Oudere gateways blijven werken dankzij fallback naar `version`/`base_url`.
+### Requirements
+- Gateway ≥ **1.0.4** to use the new TXT fields. Older gateways keep working thanks to fallback to `version`/`base_url`.
 
 ## [1.2.1] - 2026-06-19
 
 ### Fixed
-- **Supervisor discovery accepteert nu custom-repo slugs.** `async_step_hassio` in `config_flow.py` gebruikt een suffix-match (`*ipbuilding_gateway`) in plaats van een strikte gelijkheid. Hierdoor verschijnt de IPBuilding Gateway Companion in **Instellingen → Apparaten & diensten → Ontdekt** ook wanneer de add-on via een custom repository is geïnstalleerd (slug zoals `3059e002_ipbuilding_gateway`). De vaste store-slug `ipbuilding_gateway` blijft uiteraard ook werken.
+- **Supervisor discovery now accepts custom-repo slugs.** `async_step_hassio` in `config_flow.py` uses a suffix match (`*ipbuilding_gateway`) instead of strict equality. This makes the IPBuilding Gateway Companion appear in **Settings → Devices & services → Discovered** even when the add-on is installed via a custom repository (slug such as `3059e002_ipbuilding_gateway`). The fixed store slug `ipbuilding_gateway` of course still works.
 
 ## [1.2.0] - 2026-06-19
 
 ### Breaking
-- **Onboarding-wizard verwijderd** uit de koppel-flow. Een verse installatie laat het tandwiel-menu (`Configure`) de plek zijn waar de operator expliciet gateway-ruimtes aan HA-areas koppelt. De `_suggest_channel_areas` stille koppeling (op bestaande areas met dezelfde naam) en de `suggested_area` hint op devices blijven werken.
-- **Button-import verwijderd.** De wizard importeerde IP1100PoE-knop → actie mappings uit `getButtons` naar `automations.yaml`; dit moet nu via de meegeleverde blueprints (`button_standard`, `button_toggle`, `button_dim`, `button_cover`, `dim_button`) of eigen HA-automations.
-- **Pre-change snapshot:** de laatste versie met de volledige wizard is getagged als `v1.1.0-with-onboarding-wizard` op `b80346f` — gebruik `git checkout v1.1.0-with-onboarding-wizard -- <paths>` om de wizard-code terug te halen.
+- **Onboarding wizard removed** from the pairing flow. On a fresh install the gear menu (`Configure`) is where the operator explicitly maps gateway rooms to HA areas. The `_suggest_channel_areas` silent mapping (onto existing areas with the same name) and the `suggested_area` hint on devices keep working.
+- **Button import removed.** The wizard imported IP1100PoE button → action mappings from `getButtons` into `automations.yaml`; this must now go through the packaged blueprints (`button_standard`, `button_toggle`, `button_dim`, `button_cover`, `dim_button`) or custom HA automations.
+- **Pre-change snapshot:** the last version with the full wizard is tagged as `v1.1.0-with-onboarding-wizard` on `b80346f` — use `git checkout v1.1.0-with-onboarding-wizard -- <paths>` to recover the wizard code.
 
 ### Added
-- **Room → area mapping als tandwiel-optie.** De options-flow heeft één menu-item *Ruimtes koppelen* (`map_rooms`) dat een `AreaSelector` per gateway-ruimte toont. Een leeg veld valt terug op een HA-area met dezelfde naam (of maakt die aan); de keuze wordt in `entry.options[CONF_ROOM_MAPPINGS]` opgeslagen en door `__init__._apply_stored_room_mappings` opnieuw toegepast bij elke reload.
-- **Ruimtes koppelen wordt automatisch geopend** meteen na het toevoegen van een gateway. `_maybe_offer_room_mapping` start de options-flow zelf (`hass.config_entries.options.async_init`) zodra er gateway-ruimtes gekend zijn en er nog geen mapping is opgeslagen; `async_step_init` slaat dan het menu over en toont meteen *Ruimtes koppelen*. Een nieuwe `entry.options[CONF_ROOM_MAPPING_OFFERED]`-vlag zorgt dat dit maar één keer per gateway gebeurt, ook als de operator het scherm sluit zonder op te slaan.
+- **Room → area mapping as a gear option.** The options flow has one menu item *Map rooms* (`map_rooms`) that shows an `AreaSelector` per gateway room. An empty field falls back to an HA area with the same name (or creates one); the choice is stored in `entry.options[CONF_ROOM_MAPPINGS]` and reapplied by `__init__._apply_stored_room_mappings` on every reload.
+- **Map rooms opens automatically** right after adding a gateway. `_maybe_offer_room_mapping` starts the options flow itself (`hass.config_entries.options.async_init`) as soon as gateway rooms are known and no mapping is stored yet; `async_step_init` then skips the menu and shows *Map rooms* immediately. A new `entry.options[CONF_ROOM_MAPPING_OFFERED]` flag ensures this happens only once per gateway, even if the operator closes the screen without saving.
 
 ### Changed
-- `config_flow.py`: alle discovery-paden (`async_step_user`, `async_step_hassio_confirm`, `async_step_discovery_confirm`) maken nu direct `async_create_entry` aan. Geen `_ob_*` state, geen wizard-spinner meer in de koppel-flow.
-- `async_step_hassio_confirm` haalt `host`/`port` nu uit `self._discovery_info` (latente `NameError` in de oude code als de form werd geopend zonder `user_input`).
-- `options_flow.py` herschreven tot één `IPBuildingOptionsFlowHandler(OptionsFlow)` met menu `["map_rooms"]` — geen `OnboardingFlowMixin` meer.
-- `_apply_onboarding_results` hernoemd naar `_apply_stored_room_mappings` en doet alleen nog de room-mapping; button-import is weg.
-- Debug agent-log blocks in `config_flow.async_step_hassio` en `_import_button_automations` verwijderd.
+- `config_flow.py`: all discovery paths (`async_step_user`, `async_step_hassio_confirm`, `async_step_discovery_confirm`) now call `async_create_entry` directly. No `_ob_*` state, no wizard spinner left in the pairing flow.
+- `async_step_hassio_confirm` now takes `host`/`port` from `self._discovery_info` (latent `NameError` in the old code when the form was opened without `user_input`).
+- `options_flow.py` rewritten as one `IPBuildingOptionsFlowHandler(OptionsFlow)` with menu `["map_rooms"]` — no more `OnboardingFlowMixin`.
+- `_apply_onboarding_results` renamed to `_apply_stored_room_mappings` and only does room mapping; button import is gone.
+- Debug agent-log blocks in `config_flow.async_step_hassio` and `_import_button_automations` removed.
 
 ### Removed
-- Wizard-modules: `onboarding_flow.py`, `gateway_rest.py`, `button_automation_builder.py`, `automation_store.py`, `target_resolver.py`, `button_mapping.py`.
-- Constanten: `CONF_ONBOARDING_COMPLETED`, `CONF_ONBOARDING_SKIPPED`, `CONF_IMPORT_BUTTONS`, `CONF_BUTTON_AUTOMATIONS`.
-- i18n: alle `ob_*` / `onboarding_*` steps, `preparing` / `discovery` / `modules_refresh` progress keys, `onboarding_complete` abort.
+- Wizard modules: `onboarding_flow.py`, `gateway_rest.py`, `button_automation_builder.py`, `automation_store.py`, `target_resolver.py`, `button_mapping.py`.
+- Constants: `CONF_ONBOARDING_COMPLETED`, `CONF_ONBOARDING_SKIPPED`, `CONF_IMPORT_BUTTONS`, `CONF_BUTTON_AUTOMATIONS`.
+- i18n: all `ob_*` / `onboarding_*` steps, `preparing` / `discovery` / `modules_refresh` progress keys, `onboarding_complete` abort.
 - Tests: `test_onboarding_wiring.py`, `test_button_automation_builder.py`, `test_button_mapping.py`, `test_automation_store.py`.
 
 ## [1.1.0] - 2026-06-19
 
 ### Added
-- **Onboarding-wizard in de koppel-flow.** Na het toevoegen van de gateway loopt de wizard meteen — *ruimtes → areas* → *overzicht van nieuwe entiteiten* → *knoppen importeren* — vóór de integratie wordt aangemaakt. Dit vervangt het kale entiteiten-overzicht als eerste scherm.
-- **Ruimte → HA-area mapping.** Gateway-ruimtenamen worden als veldlabel getoond en gekoppeld aan Home Assistant areas; een gelijknamige bestaande area wordt voorgeselecteerd en ontbrekende areas worden aangemaakt. Geldt voor relais/dimmers én IP1100PoE-knoppen.
-- **Knop-automatiseringen worden daadwerkelijk aangemaakt** in `automations.yaml`: per geconfigureerde knopactie een HA device-trigger-automation met alias `"<knop> → <doel>"`, actie `on`/`off`/`toggle` conform de inputmodule, en een stabiel `ipb_map_*` id (idempotent — handgemaakte automatiseringen blijven behouden). De integratie roept automatisch `automation.reload` aan.
-- **Knop-doelen worden voorgevuld** in de "wizard opnieuw"-flow op basis van de bestaande mapping van de inputmodule.
-- IP1100PoE-knoppen zijn standaard **ingeschakeld** in de entity registry; inactieve relay/dimmer-kanalen (`active: false` in `devices.json`) blijven disabled+hidden.
+- **Onboarding wizard in the pairing flow.** After adding the gateway the wizard runs immediately — *rooms → areas* → *overview of new entities* → *import buttons* — before the integration is created. This replaces the bare entity overview as the first screen.
+- **Room → HA area mapping.** Gateway room names are shown as field labels and mapped to Home Assistant areas; an existing area with the same name is preselected and missing areas are created. Applies to relays/dimmers and IP1100PoE buttons.
+- **Button automations are actually created** in `automations.yaml`: per configured button action a HA device-trigger automation with alias `"<button> → <target>"`, action `on`/`off`/`toggle` per the input module, and a stable `ipb_map_*` id (idempotent — hand-made automations are kept). The integration automatically calls `automation.reload`.
+- **Button targets are prefilled** in the "run wizard again" flow from the existing input-module mapping.
+- IP1100PoE buttons are **enabled** by default in the entity registry; inactive relay/dimmer channels (`active: false` in `devices.json`) remain disabled+hidden.
 
 ### Changed
-- De onboarding-wizard draait nu **in de config flow** i.p.v. een automatisch gestarte OptionsFlow. De OptionsFlow blijft beschikbaar voor *Configure → wizard opnieuw*.
-- **Discovery-scan verwijderd** uit de wizard. Een sweep draait alleen nog stil wanneer de gateway nog geen devices kent (verse installatie).
-- Knop-automatiseringen zijn nu **standaard ingeschakeld** en gebruiken het moderne `triggers`/`conditions`/`actions`-schema. `allOn`/`allOff` worden voorlopig overgeslagen in plaats van een ongeldige module-scope groep weg te schrijven.
+- The onboarding wizard now runs **in the config flow** instead of an automatically started OptionsFlow. The OptionsFlow remains available for *Configure → run wizard again*.
+- **Discovery scan removed** from the wizard. A sweep now only runs silently when the gateway does not yet know any devices (fresh install).
+- Button automations are now **enabled by default** and use the modern `triggers`/`conditions`/`actions` schema. `allOn`/`allOff` are skipped for now instead of writing an invalid module-scope group.
 
 ### Fixed
-- **Coordinator-crash bij elke refresh** en mislukte onboarding-discovery: de per-entity listener-dict botste met `DataUpdateCoordinator._listeners` (hernoemd naar `_entity_listeners`).
-- **Lege wizard-menu's/labels:** onboarding-vertalingen stonden onder de verkeerde flow-sectie; ze staan nu op de juiste plek. Dynamische velden (ruimtes, knoppen) worden op naam gekeyd zodat het label klopt.
-- **Wizard liep vast na de ruimte-stap:** ongeldige `show_progress`-overgang plus een reload midden in de wizard die de coordinator onderuithaalde (`KeyError`).
-- **Unload-fout** `'_asyncio.Task' object is not callable`: de bootstrap-sweep registreerde een Task in plaats van een callable op `async_on_unload`.
-- Geen scanscherm meer bij het koppelen van een reeds gevulde gateway.
+- **Coordinator crash on every refresh** and failed onboarding discovery: the per-entity listener dict collided with `DataUpdateCoordinator._listeners` (renamed to `_entity_listeners`).
+- **Empty wizard menus/labels:** onboarding translations lived under the wrong flow section; they are now in the right place. Dynamic fields (rooms, buttons) are keyed by name so the label is correct.
+- **Wizard stuck after the room step:** invalid `show_progress` transition plus a reload mid-wizard that pulled the coordinator out from under it (`KeyError`).
+- **Unload error** `'_asyncio.Task' object is not callable`: the bootstrap sweep registered a Task instead of a callable on `async_on_unload`.
+- No more scan screen when pairing an already populated gateway.
 
 ## [1.0.0] - 2026-06-18
 
 ### Breaking
-- **HA-domain hernoemd** van `ipbuilding_gateway_ha` naar `ha_ipbuilding_gateway`. Dit is een **breaking change** voor bestaande HA-installaties. Verwijder de oude integratie uit Instellingen → Apparaten & Diensten, herinstalleer via HACS, en pas je Lovelace-cards, scripts en automations aan om de nieuwe entity-IDs te gebruiken (`light.ha_ipbuilding_gateway_*`, `switch.ha_ipbuilding_gateway_*`, `event.ha_ipbuilding_gateway_*`, `sensor.ha_ipbuilding_gateway_*`). De folder `config/blueprints/automation/ipbuilding_gateway_ha/` moet je zelf hernoemen naar `config/blueprints/automation/ha_ipbuilding_gateway/` (of de blueprints opnieuw aanmaken vanuit de UI). Geen data-verlies in `devices.json` (gateway-kant). Zie de [README migratie-sectie](README.md#upgrading-from-a-pre-10-install) voor de volledige stappen.
-- **Bus event-types** hernoemd: `ipbuilding_gateway_ha.button_pressed`, `.button_long_pressed`, `.button_released` → `ha_ipbuilding_gateway.button_pressed`, `.button_long_pressed`, `.button_released`. HA Core events volgen automatisch omdat ze via `f"{DOMAIN}.{suffix}"` worden opgebouwd; eventuele hardcoded referenties in eigen automations moeten worden bijgewerkt.
+- **HA domain renamed** from `ipbuilding_gateway_ha` to `ha_ipbuilding_gateway`. This is a **breaking change** for existing HA installs. Remove the old integration from Settings → Devices & Services, reinstall via HACS, and update your Lovelace cards, scripts and automations to use the new entity IDs (`light.ha_ipbuilding_gateway_*`, `switch.ha_ipbuilding_gateway_*`, `event.ha_ipbuilding_gateway_*`, `sensor.ha_ipbuilding_gateway_*`). Rename the folder `config/blueprints/automation/ipbuilding_gateway_ha/` yourself to `config/blueprints/automation/ha_ipbuilding_gateway/` (or recreate the blueprints from the UI). No data loss in `devices.json` (gateway side). See the [README migration section](README.md#upgrading-from-a-pre-10-install) for the full steps.
+- **Bus event types** renamed: `ipbuilding_gateway_ha.button_pressed`, `.button_long_pressed`, `.button_released` → `ha_ipbuilding_gateway.button_pressed`, `.button_long_pressed`, `.button_released`. HA Core events follow automatically because they are built via `f"{DOMAIN}.{suffix}"`; any hardcoded references in custom automations must be updated.
 
 ### Changed
-- **Repository hernoemd** van `markminnoye/ipbuilding-gateway-ha` naar `markminnoye/ha-ipbuilding-gateway`. GitHub zet een 301-redirect in zodat bestaande clones, issues en HACS custom-repository URL's blijven werken. (Vorig release.)
-- **Eerste major release (1.0.0)** — markeert de eerste stabiele versie van de volledige field-bus hub + companion stack.
+- **Repository renamed** from `markminnoye/ipbuilding-gateway-ha` to `markminnoye/ha-ipbuilding-gateway`. GitHub sets a 301 redirect so existing clones, issues and HACS custom-repository URLs keep working. (Previous release.)
+- **First major release (1.0.0)** — marks the first stable version of the full field-bus hub + companion stack.
 
 ## [0.4.3] - 2026-06-18
 
 ### Fixed
-- **Correcte lichtstatus direct na een herstart.** Vóór deze versie zette de companion elk kanaal waarvan de gateway (nog) geen echte aan/uit-stand had doorgegeven op "uit" — inclusief relay-kanalen die alleen nog op hun eerste UDP-commando wachtten, en dimmer-kanalen die nog geen level-reply teruggestuurd hadden. Een verse herstart van de gateway of de companion zag er daardoor uit als "alles uit", ook al brandden er lampen. De companion mapt nu "unknown" en "inactive" netjes op een onbekende staat in Home Assistant, zodat HA "Onbekend" toont in plaats van "uit" tot de gateway de eerste echte status levert. Werkt samen met [IPBuilding Gateway v0.4.3](https://github.com/markminnoye/IPBuilding-Gateway/releases/tag/v0.4.3), die de live kanaalstatus bij het opstarten ophaalt zodat de eerste snapshot direct klopt.
+- **Correct light state immediately after a restart.** Before this version the companion set every channel for which the gateway had not (yet) passed a real on/off state to "off" — including relay channels still waiting for their first UDP command, and dimmer channels that had not yet returned a level reply. A fresh restart of the gateway or companion therefore looked like "everything off", even when lights were on. The companion now maps "unknown" and "inactive" cleanly to an unknown state in Home Assistant, so HA shows "Unknown" instead of "off" until the gateway delivers the first real status. Works together with [IPBuilding Gateway v0.4.3](https://github.com/markminnoye/IPBuilding-Gateway/releases/tag/v0.4.3), which fetches live channel status at startup so the first snapshot is correct immediately.
 
 ## [0.4.0-rc.11] - 2026-06-18
 
 ### Changed
-- **Packaged blueprints niet meer in de HA Blueprint-picker** — `async_install_packaged_blueprints` is vanaf nu een no-op. De blueprint-files blijven in de repo (referentie + source-only tests), maar worden niet meer naar `config/blueprints/automation/ipbuilding_gateway_ha/` gekopieerd. De publieke API (`async_install_packaged_blueprints`, `invalidate_packaged_blueprints_cache`) blijft bestaan voor backward compatibiliteit. De README-sectie is herschreven: "Button automations" wijst de operator op community-blueprints (Z2M Hue Dimmer Ultimate Controller, IKEA STYRBAR) en de standaard HA-flow.
-- **`manifest.json` dependencies** — `blueprint` is verwijderd (de companion shipt niets meer naar HA-blueprint).
+- **Packaged blueprints no longer in the HA Blueprint picker** — `async_install_packaged_blueprints` is now a no-op. The blueprint files remain in the repo (reference + source-only tests), but are no longer copied to `config/blueprints/automation/ipbuilding_gateway_ha/`. The public API (`async_install_packaged_blueprints`, `invalidate_packaged_blueprints_cache`) remains for backward compatibility. The README section is rewritten: "Button automations" points the operator to community blueprints (Z2M Hue Dimmer Ultimate Controller, IKEA STYRBAR) and the standard HA flow.
+- **`manifest.json` dependencies** — `blueprint` is removed (the companion no longer ships anything to HA blueprints).
 
 ### Notes
-- **Bestaande installs** — `config/blueprints/automation/ipbuilding_gateway_ha/*.yaml` files blijven staan op HA. De operator kan ze zelf verwijderen via de HA Blueprint-picker of de filesystem. Bestaande automations die `use_blueprint` refereren blijven werken totdat de operator de blueprint-files verwijdert.
-- **Nieuwe installs** — De Blueprint-picker toont geen IPBuilding-blueprints meer. Operators bouwen acties via community-blueprints of de standaard HA-flow.
+- **Existing installs** — `config/blueprints/automation/ipbuilding_gateway_ha/*.yaml` files remain on HA. The operator can delete them via the HA Blueprint picker or the filesystem. Existing automations that reference `use_blueprint` keep working until the operator removes the blueprint files.
+- **New installs** — The Blueprint picker no longer shows IPBuilding blueprints. Operators build actions via community blueprints or the standard HA flow.
 
 ## [0.4.0-rc.10] - 2026-06-18
 
 ### Changed
-- **`button_toggle.yaml` (v4)** — `automation_name` input en `alias: !input automation_name` zijn verwijderd. De automation-naam wordt nu direct in de Home Assistant save-popup ingevuld (die opent altijd bij het aanmaken van een nieuwe automation). De popup prefilt de blueprint-name "IPBuilding wandknop — toggle"; de operator typt de gewenste friendly naam en bevestigt. Dit voorkomt de mismatch tussen de blueprint-input en de popup-default.
+- **`button_toggle.yaml` (v4)** — `automation_name` input and `alias: !input automation_name` are removed. The automation name is now filled in directly in the Home Assistant save popup (which always opens when creating a new automation). The popup prefills the blueprint name "IPBuilding wandknop — toggle"; the operator types the desired friendly name and confirms. This avoids the mismatch between the blueprint input and the popup default.
 
 ## [0.4.0-rc.9] - 2026-06-18
 
 ### Notes
-- **`button_cover.yaml` is een voorbeeld** — de blueprint-naam begint nu met `[Voorbeeld]` en de description legt uit dat de companion-ontwikkelaars geen `cover`-hardware hebben om dit te valideren. Bugs graag melden via GitHub Issues met label `cover-blueprint`.
-- **`button_toggle.yaml`** — de zin "The automation area is asked by Home Assistant in the popup that appears after you press 'Opslaan' — it is not a blueprint input" is verwijderd uit de description om dubbele uitleg te vermijden.
-- **HA-frontend rename-popup** — Home Assistant opent altijd een "hernoem"-popup bij het aanmaken van een nieuwe automation, ook vanuit een blueprint. De popup vult de **blueprint-name** als default in (bv. "IPBuilding wandknop — toggle"), niet de `automation_name` uit de blueprint. De `alias: !input automation_name` wordt wel correct in de opgeslagen YAML gezet; pas in de popup de naam aan vóór je bevestigt als je de blueprint-naam niet wilt.
+- **`button_cover.yaml` is an example** — the blueprint name now starts with `[Voorbeeld]` and the description explains that the companion developers have no `cover` hardware to validate this. Please report bugs via GitHub Issues with label `cover-blueprint`.
+- **`button_toggle.yaml`** — the sentence "The automation area is asked by Home Assistant in the popup that appears after you press 'Opslaan' — it is not a blueprint input" is removed from the description to avoid duplicate explanation.
+- **HA frontend rename popup** — Home Assistant always opens a "rename" popup when creating a new automation, including from a blueprint. The popup fills in the **blueprint name** as default (e.g. "IPBuilding wandknop — toggle"), not the `automation_name` from the blueprint. `alias: !input automation_name` is still written correctly into the saved YAML; adjust the name in the popup before confirming if you do not want the blueprint name.
 
 ## [0.4.0-rc.8] - 2026-06-18
 
 ### Changed
-- **`button_toggle.yaml` (v2) — minimale UX** — vervangt de `target:`-selector (die tabbladen voor entity / apparaat / ruimte toonde plus een "Doel toevoegen"-knop) door een `entity:`-selector met `multiple: false`. Het veld `target_kind` en `target_area` zijn verwijderd; de toggle-blauprint is nu één entity op één knop. De `automation_area` input is verwijderd: HA vraagt de ruimte in de popup die verschijnt na "Opslaan", en een tweede "Ruimte"-veld in de blueprint was verwarrend.
-- **`button_standard.yaml` (v2) — target-selector + scene-guard** — vervangt 8 separate velden (`*_target_kind`, `*_entity_target`, `*_area` per fase) door één `target:`-veld per fase. De `target:`-selector biedt automatisch entity, meerdere entities, of een ruimte in één widget. Een afgeleide `*_has_scene` variable checkt of het target een scene bevat; `on`/`off`/`toggle` worden defensief overgeslagen wanneer dat zo is, en `activate_scene` wordt overgeslagen wanneer er geen scene in het target zit.
+- **`button_toggle.yaml` (v2) — minimal UX** — replaces the `target:` selector (which showed tabs for entity / device / area plus an "Add target" button) with an `entity:` selector with `multiple: false`. The `target_kind` and `target_area` fields are removed; the toggle blueprint is now one entity on one button. The `automation_area` input is removed: HA asks for the area in the popup that appears after "Save", and a second "Area" field in the blueprint was confusing.
+- **`button_standard.yaml` (v2) — target selector + scene guard** — replaces 8 separate fields (`*_target_kind`, `*_entity_target`, `*_area` per phase) with one `target:` field per phase. The `target:` selector automatically offers entity, multiple entities, or an area in one widget. A derived `*_has_scene` variable checks whether the target contains a scene; `on`/`off`/`toggle` are defensively skipped when that is the case, and `activate_scene` is skipped when there is no scene in the target.
 
 ## [0.4.0-rc.7] - 2026-06-18
 
 ### Fixed
-- **YAML 1.1 boolean coercion in blueprint `select` opties** — `value: on` en `value: off` werden door YAML als booleans (`True`/`False`) ingelezen, waardoor HA's `select`-validator ze afkeurde met `expected str for dictionary value @ data['...']['value']. Got None`. Alle optie-velden in `button_standard.yaml` zijn nu expliciet gequote (`"on"`, `"off"`, `"none"`, `"toggle"`, `"activate_scene"`). Regression-guard in `tests/test_blueprints_source.py::test_select_option_values_are_strings`.
+- **YAML 1.1 boolean coercion in blueprint `select` options** — `value: on` and `value: off` were read by YAML as booleans (`True`/`False`), so HA’s `select` validator rejected them with `expected str for dictionary value @ data['...']['value']. Got None`. All option fields in `button_standard.yaml` are now explicitly quoted (`"on"`, `"off"`, `"none"`, `"toggle"`, `"activate_scene"`). Regression guard in `tests/test_blueprints_source.py::test_select_option_values_are_strings`.
 
 ## [0.4.0-rc.6] - 2026-06-18
 
 ### Added
-- **Blueprint-set voor IP1100PoE-knoppen** — vier doelgerichte blueprints in `custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/`: `button_toggle` (korte druk → toggle), `button_standard` (kort + optioneel lang, met on / off / toggle / scene voor entity of alle lampen in een ruimte), `button_dim` (toggle + dim tijdens hold, vervangt `dim_button.yaml`) en `button_cover` (hold = open of close, release = stop).
-- **Versioned blueprint-sync** — elke packaged blueprint heeft een `# ipbuilding_blueprint_version: N` header. De companion overschrijft bestaande blueprints op HA wanneer de package-versie hoger is. Bestanden met een `# user_modified: true` marker blijven onaangeraakt.
+- **Blueprint set for IP1100PoE buttons** — four targeted blueprints in `custom_components/ipbuilding_gateway_ha/blueprints/automation/ipbuilding_gateway_ha/`: `button_toggle` (short press → toggle), `button_standard` (short + optional long, with on / off / toggle / scene for entity or all lights in a room), `button_dim` (toggle + dim during hold, replaces `dim_button.yaml`) and `button_cover` (hold = open or close, release = stop).
+- **Versioned blueprint sync** — each packaged blueprint has a `# ipbuilding_blueprint_version: N` header. The companion overwrites existing blueprints on HA when the package version is higher. Files with a `# user_modified: true` marker remain untouched.
 
 ### Fixed
-- **Dim-blueprint `max: 1` foutmelding** — `button_dim.yaml` gebruikt uitsluitend `mode: restart`; de ongeldige `max: 1` is verwijderd zodat `Message malformed: value must be at least 2 @ data['max']` niet meer optreedt bij het opslaan.
-- **Helper UX-tekst** — `button_dim.yaml` legt nu het verschil uit tussen de **Naam** (mag spaties) en de **Entity ID** (alleen `a-z`, `0-9`, underscores) van de `input_boolean` direction helper.
-- **Device-trigger lekt niet meer over andere knoppen** — `async_attach_trigger` in `device_trigger.py` viel terug op een lege `event_data` filter wanneer de hardware-id niet gevonden kon worden. Een lege filter matcht *iedere* `ipbuilding_gateway_ha.button_*`-event, waardoor een automatisering op één knop kon afgaan op een fysieke druk op een andere. De handler faalt nu hard met een `ValueError` wanneer de hardware-id ontbreekt; regressie-guard in `tests/test_device_trigger.py`.
+- **Dim blueprint `max: 1` error** — `button_dim.yaml` uses only `mode: restart`; the invalid `max: 1` is removed so `Message malformed: value must be at least 2 @ data['max']` no longer occurs on save.
+- **Helper UX text** — `button_dim.yaml` now explains the difference between the **Name** (may contain spaces) and the **Entity ID** (only `a-z`, `0-9`, underscores) of the `input_boolean` direction helper.
+- **Device trigger no longer leaks across other buttons** — `async_attach_trigger` in `device_trigger.py` fell back to an empty `event_data` filter when the hardware id could not be found. An empty filter matches *every* `ipbuilding_gateway_ha.button_*` event, so an automation on one button could fire on a physical press of another. The handler now fails hard with a `ValueError` when the hardware id is missing; regression guard in `tests/test_device_trigger.py`.
 
 ### Deprecated
-- **`dim_button.yaml`** is vervangen door `button_dim.yaml` en blijft alleen als stub bestaan. De stub vuurt een `persistent_notification` af zodra een bestaande automatisering hem nog gebruikt. Migreer door een nieuwe automatisering vanuit `button_dim.yaml` te maken en de oude uit te zetten.
+- **`dim_button.yaml`** is replaced by `button_dim.yaml` and remains only as a stub. The stub fires a `persistent_notification` as soon as an existing automation still uses it. Migrate by creating a new automation from `button_dim.yaml` and disabling the old one.
 
 ## [0.4.0-rc.5] - 2026-06-18
 
 ### Fixed
-- **hassfest:** `automation` en `blueprint` toegevoegd aan `manifest.json` `dependencies` (vereist voor packaged blueprint-installatie).
+- **hassfest:** `automation` and `blueprint` added to `manifest.json` `dependencies` (required for packaged blueprint installation).
 - **Manual config flow pre-fills the host with `127.0.0.1`** — the Supervisor add-on contract. Operators adding the integration by hand used to see an empty host field; the loopback hint now matches the HassIO discovery flow, so a fresh add-on install confirms out of the box. Standalone installs (Docker, Pi, remote) can still override the value.
-- **discovery_completed + bootstrap one-shot** — robuuster afhandelen van discovery-events en eerste REST-bootstrap.
+- **discovery_completed + bootstrap one-shot** — more robust handling of discovery events and the first REST bootstrap.
 
 ### Removed
-- **Debug switch om gateway veld-bus polling te togglen.** De `Fieldbus polling (debug)` entity en de bijbehorende coordinator-helpers zijn verwijderd. De gateway-side `POST /api/v1/debug/fieldbus-polling` endpoint is eveneens verwijderd (zie [`IPBuilding-Gateway` v0.4.3](../../IPBuilding-Gateway/blob/main/ipbuilding_gateway/CHANGELOG.md)).
+- **Debug switch to toggle gateway field-bus polling.** The `Fieldbus polling (debug)` entity and the related coordinator helpers are removed. The gateway-side `POST /api/v1/debug/fieldbus-polling` endpoint is likewise removed (see [`IPBuilding-Gateway` v0.4.3](../../IPBuilding-Gateway/blob/main/ipbuilding_gateway/CHANGELOG.md)).
 
 ## [0.4.0] - 2026-06-17
 
 ### Added
-- **Dim-button blueprint** (`ipbuilding_gateway_ha/dim_button.yaml`): toggle op korte druk, dimmen tijdens hold met automatische direction-flip bij loslaten en op 1 % / 100 %.
-- Packaged automation-blueprints worden bij integratie-setup automatisch naar `config/blueprints/automation/` gekopieerd wanneer ze daar nog ontbreken; bestaande bestanden worden niet overschreven.
-- IP1100PoE-knoppen: `long_press`- en `release`-eventtypes op de event-entity, plus bus-events `ipbuilding_gateway_ha.button_long_pressed` en `ipbuilding_gateway_ha.button_released` (naast het bestaande `button_pressed`).
-- Drie device triggers per knop in de automation-editor: **Button pressed**, **Long pressed**, **Released**.
+- **Dim-button blueprint** (`ipbuilding_gateway_ha/dim_button.yaml`): toggle on short press, dim during hold with automatic direction flip on release and at 1% / 100%.
+- Packaged automation blueprints are copied automatically to `config/blueprints/automation/` on integration setup when they are still missing there; existing files are not overwritten.
+- IP1100PoE buttons: `long_press` and `release` event types on the event entity, plus bus events `ipbuilding_gateway_ha.button_long_pressed` and `ipbuilding_gateway_ha.button_released` (alongside the existing `button_pressed`).
+- Three device triggers per button in the automation editor: **Button pressed**, **Long pressed**, **Released**.
 
 ### Changed
-- Fysieke knoppen en de discovery-sweepknop zijn gesplitst over het `event`- en `button`-platform; hardware-knoppen krijgen een stabiele `event.<hardware_id>` entity_id.
-- **Vernieuwde iconenset voor de integratie.** Het icoon van de companion (HACS-categorie, Apparaten & diensten) en de merkiconen in `brand/` zijn vervangen door een nieuwe set. De weergave in Instellingen → Apparaten & diensten en de merk-icon-grid gebruiken voortaan het nieuwe ontwerp; gedrag van entiteiten verandert niet.
+- Physical buttons and the discovery-sweep button are split across the `event` and `button` platforms; hardware buttons get a stable `event.<hardware_id>` entity_id.
+- **Refreshed icon set for the integration.** The companion icon (HACS category, Devices & services) and the brand icons in `brand/` are replaced by a new set. The display in Settings → Devices & services and the brand icon grid now use the new design; entity behaviour is unchanged.
 
 ### Fixed
-- Dim-button blueprint: entity selector gebruikt het `filter:`-formaat (HA 2026.3+); `direction_helper`-variabele in de dim-repeat-actie.
+- Dim-button blueprint: entity selector uses the `filter:` format (HA 2026.3+); `direction_helper` variable in the dim-repeat action.
 
 ## [0.3.8] - 2026-06-16
 
@@ -417,17 +401,17 @@ anders meldt.
 ## [0.3.7] - 2026-06-16
 
 ### Changed
-- **Apparaatnaam voor de drie field modules toont nu `Relay module`, `Dimmer module`, `Input module`** in plaats van `Relay` / `Dimmer` / `Input`. De suffix maakt expliciet dat de kaart in de onboarding "Naam geven en toewijzen" de fysieke module voorstelt, niet één van de kanalen. De kanaal-apparaten in "Apparaat-info" houden hun korte rol-label (`Relay` / `Dimmer` / `Input`) zodat het overzicht bij 16+ kanalen compact blijft. De SKU-titel (`IP0200PoE` / `IP0300PoE` / `IP1100PoE`) verandert niet.
+- **Device name for the three field modules now shows `Relay module`, `Dimmer module`, `Input module`** instead of `Relay` / `Dimmer` / `Input`. The suffix makes it explicit that the card in onboarding "Name and assign" represents the physical module, not one of the channels. Channel devices in "Device info" keep their short role label (`Relay` / `Dimmer` / `Input`) so the overview stays compact with 16+ channels. The SKU title (`IP0200PoE` / `IP0300PoE` / `IP1100PoE`) is unchanged.
 
 ## [0.3.6] - 2026-06-16
 
 ### Fixed
-- **IP1100PoE-knoppen verschijnen nu als uitgeschakeld** in plaats van niet beschikbaar. Nieuwe knoppen uit de gateway-snapshot worden standaard verborgen en uitgeschakeld geregistreerd; je schakelt ze zelf in onder Instellingen → Apparaten & entiteiten.
+- **IP1100PoE buttons now appear as disabled** instead of unavailable. New buttons from the gateway snapshot are registered hidden and disabled by default; enable them yourself under Settings → Devices & entities.
 
 ## [0.3.5] - 2026-06-16
 
 ### Notes
-- **Lockstep bump** met de add-on. Geen code-wijzigingen in de companion. Vereist add-on **v0.3.5** voor automatische Supervisor-updates.
+- **Lockstep bump** with the add-on. No code changes in the companion. Requires add-on **v0.3.5** for automatic Supervisor updates.
 
 ## [0.3.3] - 2026-06-16
 
@@ -440,7 +424,7 @@ anders meldt.
 - `module_device_name` now treats the module's IP address and the bare hardware SKU as auto-discovery placeholders. Operators who set a real name in `devices.json` (e.g. `Kelder relais`) are unaffected; auto-discovery and pre-provisioned installs (e.g. legacy `name: "10.10.1.50"`) now show the role label (`Relay` / `Dimmer` / `Input`) instead of an IP.
 
 ### Notes
-- Vereist add-on **v0.3.3** voor de SKU-backfill; oudere add-ons blijven werken dankzij de defensive fallback in de companion, maar krijgen geen automatische `devices.json`-correctie.
+- Requires add-on **v0.3.3** for the SKU backfill; older add-ons keep working thanks to the defensive fallback in the companion, but do not get automatic `devices.json` correction.
 
 ## [0.3.1] — 2026-06-16
 
@@ -449,43 +433,43 @@ anders meldt.
 
 ## [0.3.0] — 2026-06-16
 
-Bundelrelease: alles sinds **0.1.0** (plus wijzigingen die alleen onder
-0.1.1–0.2.2 stonden) zit in deze versie. Tussenliggende tags zijn niet
-allemaal als aparte release gepubliceerd — upgrade in één stap naar
-**v0.3.0** samen met add-on **v0.3.0**.
+Bundle release: everything since **0.1.0** (plus changes that only lived under
+0.1.1–0.2.2) is in this version. Intermediate tags were not
+all published as separate releases — upgrade in one step to
+**v0.3.0** together with add-on **v0.3.0**.
 
 ### Added
-- De integratie verschijnt in **Instellingen → Apparaten & Diensten → Ontdekt** (zelfde UX als Shelly, ESPHome, Music Assistant). Op HA OS via Supervisor-discovery; bij een standalone gateway via mDNS (`_ipbgw._tcp.local.`). Beide paden worden gededupliceerd tot één vermelding.
-- **Gateway status sensor** (diagnostisch): toont `ok` / `degraded` / `unhealthy`, versie, uptime en open issues van de gateway. Werkt via `GET /api/v1/status` en live WebSocket-updates.
-- **Discovery sweep-knop** op het gateway-apparaat: start een geforceerde veldbus-scan (`POST /api/v1/discover`) vanuit Home Assistant.
-- **Fysieke IP1100PoE-knoppen als routeerbare event-entities** (issue #4): elke knop uit `getButtons` verschijnt als `event.<naam>` onder het IP1100PoE-apparaat, drukken triggert het entity-state-event plus het bus-event `ipbuilding_gateway_ha.button_pressed`. Entities worden dynamisch aangemaakt na een discovery sweep of `POST /api/v1/modules/refresh` (gateway zorgt voor de snapshot-broadcast). Gebruik een **state trigger** op `to: "press"` in automations.
-- Inactieve kanalen (`active: false`) verschijnen als uitgeschakelde, verborgen entiteiten — inschakelen via **Instellingen → Apparaten & entiteiten** wanneer de bedrading klaar is (sinds 0.1.2).
-- Dashboard-voorbeeld (`dashboard.md`) met Lovelace-glance, discover-knop en issues-kaart.
+- The integration appears in **Settings → Devices & Services → Discovered** (same UX as Shelly, ESPHome, Music Assistant). On HA OS via Supervisor discovery; with a standalone gateway via mDNS (`_ipbgw._tcp.local.`). Both paths are deduplicated to one entry.
+- **Gateway status sensor** (diagnostic): shows `ok` / `degraded` / `unhealthy`, version, uptime and open issues from the gateway. Works via `GET /api/v1/status` and live WebSocket updates.
+- **Discovery sweep button** on the gateway device: starts a forced field-bus scan (`POST /api/v1/discover`) from Home Assistant.
+- **Physical IP1100PoE buttons as routable event entities** (issue #4): each button from `getButtons` appears as `event.<name>` under the IP1100PoE device; presses trigger the entity state event plus the bus event `ipbuilding_gateway_ha.button_pressed`. Entities are created dynamically after a discovery sweep or `POST /api/v1/modules/refresh` (gateway handles the snapshot broadcast). Use a **state trigger** on `to: "press"` in automations.
+- Inactive channels (`active: false`) appear as disabled, hidden entities — enable via **Settings → Devices & entities** when the wiring is ready (since 0.1.2).
+- Dashboard example (`dashboard.md`) with Lovelace glance, discover button and issues card.
 
 ### Changed
-- Config flow herschreven naar het Music Assistant-patroon: aparte `hassio`- en `zeroconf`-stappen met bevestiging; handmatige host/poort blijft fallback.
-- **Apparaatboom in drie lagen:** IPBuilding Gateway → module (Relay / Dimmer / Input) → kanaal-entiteit. Modules worden expliciet geregistreerd; `sw_version` komt van de gateway-status-API.
-- Kanaal-apparaten tonen **Relay** / **Dimmer** / **Input** i.p.v. hardware-SKU in de UI; hardwaremodel blijft op het module-apparaat.
-- Kamers uit `devices.json` (`room`) worden als **suggested area** voorgesteld bij onboarding; bestaande handmatige area-toewijzingen worden niet overschreven.
-- Passende iconen voor lights en switches (dimmer, lamp, ventilator, stopcontact, …).
-- WebSocket-verbinding rustiger: server-side keep-alive 60 s, kortere reconnect-backoff, minder ruis in het HA-log bij normale cycli.
-- Add-on en companion worden in lockstep uitgebracht op hetzelfde versienummer.
+- Config flow rewritten to the Music Assistant pattern: separate `hassio` and `zeroconf` steps with confirmation; manual host/port remains the fallback.
+- **Three-tier device tree:** IPBuilding Gateway → module (Relay / Dimmer / Input) → channel entity. Modules are registered explicitly; `sw_version` comes from the gateway status API.
+- Channel devices show **Relay** / **Dimmer** / **Input** instead of the hardware SKU in the UI; hardware model stays on the module device.
+- Rooms from `devices.json` (`room`) are proposed as **suggested area** during onboarding; existing manual area assignments are not overwritten.
+- Matching icons for lights and switches (dimmer, lamp, fan, outlet, …).
+- WebSocket connection calmer: server-side keep-alive 60 s, shorter reconnect backoff, less noise in the HA log on normal cycles.
+- Add-on and companion are released in lockstep on the same version number.
 
 ### Fixed
-- **Ontdekt-lijst werkt:** zeroconf-parser gebruikt SRV host/poort (niet alleen TXT); zonder deze fix verscheen er niets in Ontdekt ondanks een correcte broadcast.
-- **Dimmers werken:** licht- en switch-entiteiten sturen `DIM` i.p.v. `ON`/`OFF`; helderheid uit de service call of laatste bekende niveau.
-- **Inactieve kanalen:** `active: false` schakelt entiteiten uit i.p.v. ze te verwijderen; registry-sync past disable/hide correct toe.
-- **Power-sensors:** geen dubbele apparaatnaam meer in de weergavenaam (bijv. `sensor.achterdeur_licht_power` i.p.v. dubbeling).
-- Home Assistant **2026.3**-compatibiliteit voor dimmer `color_modes` en entity naming.
-- Vertalingen en manifest voldoen aan hassfest/HACS (schema `strings.json`, repo-topics).
+- **Discovered list works:** zeroconf parser uses SRV host/port (not TXT only); without this fix nothing appeared in Discovered despite a correct broadcast.
+- **Dimmers work:** light and switch entities send `DIM` instead of `ON`/`OFF`; brightness from the service call or last known level.
+- **Inactive channels:** `active: false` disables entities instead of removing them; registry sync applies disable/hide correctly.
+- **Power sensors:** no more duplicated device name in the display name (e.g. `sensor.achterdeur_licht_power` instead of a double).
+- Home Assistant **2026.3** compatibility for dimmer `color_modes` and entity naming.
+- Translations and manifest meet hassfest/HACS (`strings.json` schema, repo topics).
 
 ### Notes
-- Installeer **companion v0.3.0** en **add-on v0.3.0** samen. Vanaf **0.1.0** is dit de enige upgrade-stap die je nodig hebt.
-- Vereist een gateway die `modules` en status in de API/ WebSocket exposeert (add-on v0.3.0).
+- Install **companion v0.3.0** and **add-on v0.3.0** together. From **0.1.0** this is the only upgrade step you need.
+- Requires a gateway that exposes `modules` and status in the API/WebSocket (add-on v0.3.0).
 
 ## [0.2.2] — 2026-06-15
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Changed
 - Module and channel devices now show **Relay** / **Dimmer** / **Input** instead of the hardware SKU (`IP0200PoE`, `IP0300PoE`, `IP1100PoE`) in Apparaat-info and the “Verbonden via …” chain. The hardware model remains on the parent module device's `model` field; operator-configured module names in `devices.json` are still respected (issue #2 follow-up).
@@ -494,14 +478,14 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.2.1] — 2026-06-15
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Fixed
 - The three field modules (`IP0200PoE`, `IP0300PoE`, `IP1100PoE`) now appear as devices in Home Assistant. The previous release relied on the `via_device` link to auto-create the module devices, but Home Assistant does not create a parent device from a `via_device` reference alone — a hub that fronts other devices must register them explicitly. The companion now fetches `GET /api/v1/modules` at setup and registers the gateway plus each module device, so the full gateway → module → channel tree is built even for modules whose channels are all inactive (e.g. the input module).
 
 ## [0.2.0] — 2026-06-15
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Changed
 - Companion now builds a 3-tier device tree: `IPBuilding Gateway` → per-module device (e.g. `IP0200PoE`) → per-channel entity. Channels reference their parent module via `via_device` (module devices are registered explicitly in v0.2.1).
@@ -515,7 +499,7 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.1.5] — 2026-06-15
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Fixed
 - Power-sensor entities no longer have the device name embedded in the
@@ -528,7 +512,7 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.1.4] — 2026-06-14
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Fixed
 - Dimmer light and switch entities now send `DIM` commands to the gateway
@@ -542,7 +526,7 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.1.3] — 2026-06-14
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Fixed
 - Channels with `active: false` are now correctly **disabled** in Home
@@ -578,7 +562,7 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.1.2] — 2026-06-14
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Added
 - Shared `entity.apply_active_registry_defaults` helper. Channels reported by
@@ -595,7 +579,7 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.1.1] — 2026-06-12
 
-> Opgenomen in **[0.3.0]** hierboven.
+> Included in **[0.3.0]** above.
 
 ### Fixed
 - Dimmer lights no longer declare both `BRIGHTNESS` and `ONOFF` in
@@ -609,18 +593,18 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 
 ## [0.1.0] — 2026-06-05
 
-> Vervangen door **[0.3.0]** voor upgrades; bewaard als historie.
+> Replaced by **[0.3.0]** for upgrades; kept for history.
 
 ### Added
-- Eerste publicatie als zelfstandige HACS Integration
+- First publication as a standalone HACS Integration
 - Light entities (relay ON/OFF + dimmer BRIGHTNESS)
-- Switch entities (relay/dimmer met semantic_type switch/plug/fan)
-- Button event entities (IP1100PoE fysieke knop → `ipbuilding_gateway_ha.button_pressed` event)
-- Sensor entities (per-kanaal current_watt)
-- Supervisor auto-detectie (geen handmatige host/poort nodig wanneer add-on actief is)
-- Handmatige config flow met validatie via `GET /api/v1/devices`
-- WebSocket-coordinator met automatische reconnect
-- Nederlandse en Engelse vertalingen
+- Switch entities (relay/dimmer with semantic_type switch/plug/fan)
+- Button event entities (IP1100PoE physical button → `ipbuilding_gateway_ha.button_pressed` event)
+- Sensor entities (per-channel current_watt)
+- Supervisor auto-detection (no manual host/port needed when the add-on is active)
+- Manual config flow with validation via `GET /api/v1/devices`
+- WebSocket coordinator with automatic reconnect
+- Dutch and English translations
 
 [Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.1...HEAD
 [1.7.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.0...v1.7.1
@@ -645,3 +629,20 @@ allemaal als aparte release gepubliceerd — upgrade in één stap naar
 [0.1.2]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/markminnoye/ipbuilding-gateway-ha/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/markminnoye/ipbuilding-gateway-ha/releases/tag/v0.1.0
+
+## Version policy
+
+The `ipbuilding-gateway-ha` companion and the **IPBuilding Gateway** add-on
+follow **independent semver**. A bump in one repo does not automatically
+mean a bump in the other.
+
+- **Patch (0.3.x)**: cosmetic, no impact on the REST/WS wire.
+  Works with all gateway versions that support the current wire.
+- **Minor (0.x.0)**: new fields or optional WS events. The older
+  gateway keeps working, but the companion does not use the new
+  fields unless the gateway provides them.
+- **Major (x.0.0)**: breaking change. The CHANGELOG then includes a
+  `### Breaking:` entry listing incompatible combinations.
+
+Backward compatibility is the norm — a companion version keeps working
+with the current gateway until a `### Breaking:` entry says otherwise.
