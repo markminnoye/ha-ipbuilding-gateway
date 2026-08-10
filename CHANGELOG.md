@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-08-10
+
+### Added
+- Power sensor exposes gateway `max_watt` as a state attribute
+  (`state_attr('sensor.…_power', 'max_watt')`).
+
 ## [1.8.1] - 2026-08-06
 
 ### Added
@@ -606,7 +612,10 @@ all published as separate releases — upgrade in one step to
 - WebSocket coordinator with automatic reconnect
 - Dutch and English translations
 
-[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.1...v1.8.2
+[1.8.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.0...v1.8.1
+[1.8.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.2...v1.8.0
 [1.7.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.5.0...v1.6.0
