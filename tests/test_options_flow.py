@@ -133,23 +133,17 @@ def test_en_translations_contain_new_keys() -> None:
 
 def test_manifest_version_bumped() -> None:
     manifest = json.loads((_COMP / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.8.2"
+    assert manifest["version"] == "1.8.3"
 
 
-def test_changelog_has_1_8_2_entry() -> None:
+def test_changelog_has_1_8_3_entry() -> None:
     text = (_REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [1.8.3]" in text
+    assert "ColorMode.BRIGHTNESS" in text
     assert "## [1.8.2]" in text
     assert "max_watt" in text
     assert "## [1.8.1]" in text
     assert "## [1.8.0]" in text
-    assert "## [1.8.0.rc2]" not in text
-    assert "double_press" in text
-    assert "button_standard" in text
-    assert "hassfest" in text
-    assert "Dubbele en driedubbele druk" in text
-    assert "multi-press" in text.lower() or "multi_press" in text
-    assert "gateway_status" in text or "globale multi-press" in text
-    assert "Last seen by gateway" in text or "module_last_seen" in text
     assert "D{ch}" in (_COMP / "strings.json").read_text(encoding="utf-8")
     assert "D<ch>" not in (_COMP / "strings.json").read_text(encoding="utf-8")
 

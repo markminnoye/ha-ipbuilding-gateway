@@ -54,16 +54,16 @@ def _load_companion_module(name: str):
     return _load(name)
 
 
-def _make_light():
+def _make_light(*, device_type: str = "relay"):
     """Construct an IPBuildingLight for the no-HA part of the test."""
     light_mod = _load_companion_module("light")
     device = {
-        "id": "10.10.1.30-0",
-        "name": "Keuken LED",
+        "id": "10.10.1.30-0" if device_type == "relay" else "10.10.1.40-0",
+        "name": "Keuken LED" if device_type == "relay" else "Zithoek",
         "semantic_type": "light",
-        "device_type": "relay",
+        "device_type": device_type,
         "module_id": "00:24:77:52:ac:be",
-        "module_ip": "10.10.1.30",
+        "module_ip": "10.10.1.30" if device_type == "relay" else "10.10.1.40",
     }
     coordinator = MagicMock()
     coordinator.module_for_channel.return_value = None
@@ -121,6 +121,37 @@ class TestLightStartupState:
         light = _make_light()
         light._update_from_state({"state": "ON"})
         assert light._attr_is_on is True
+
+    def test_relay_stays_onoff_without_level(self):
+        from homeassistant.components.light import ColorMode
+
+        light = _make_light(device_type="relay")
+        assert light._attr_supported_color_modes == {ColorMode.ONOFF}
+        assert light._attr_color_mode == ColorMode.ONOFF
+
+
+class TestDimmerColorModes:
+    def test_dimmer_advertises_brightness_before_level(self):
+        from homeassistant.components.light import ColorMode
+
+        light = _make_light(device_type="dimmer")
+        assert light._attr_supported_color_modes == {ColorMode.BRIGHTNESS}
+        assert light._attr_color_mode == ColorMode.BRIGHTNESS
+        assert getattr(light, "_attr_brightness", None) is None
+
+    def test_dimmer_unknown_state_keeps_brightness_mode(self):
+        from homeassistant.components.light import ColorMode
+
+        light = _make_light(device_type="dimmer")
+        light._update_from_state({"state": "unknown"})
+        assert light._attr_is_on is None
+        assert light._attr_supported_color_modes == {ColorMode.BRIGHTNESS}
+
+    def test_dimmer_level_updates_brightness(self):
+        light = _make_light(device_type="dimmer")
+        light._update_from_state({"state": "on", "level": 40})
+        assert light._attr_is_on is True
+        assert light._attr_brightness == round(255 * 40 / 100)
 
 
 # ---------------------------------------------------------------------------
