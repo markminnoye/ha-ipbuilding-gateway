@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Persistent notification **Unknown IPBuilding input type** / **Onbekend IPBuilding inputtype** when the gateway reports `dialect_id: input.unknown.button_event`, with the type byte in the body.
 
 ### Changed
+- **Integration display name** is now **IPBuilding Gateway Companion App** (`manifest.json` + HACS). The Tier-1 hub device remains **IPBuilding Gateway**; config-entry titles stay `IPBuilding Gateway (<name>)`.
 - **Canonical 8-hex button ids.** The companion accepts 8-, 10-, 14- and 16-hex button ids from the gateway and registers entities under the 8-hex form, so a `button_event` reaches the entity regardless of which id form the gateway sent. Requires gateway ≥ **1.7.0** for dialect/`type_hex` on `device_added`; older gateways still work for id canonicalisation.
 - Config-entry **version 2** migrates existing `event_<10 or 14 hex>` unique_ids and matching device identifiers to 8-hex. `entity_id` is left unchanged so names, areas, automations and blueprints survive the upgrade.
 

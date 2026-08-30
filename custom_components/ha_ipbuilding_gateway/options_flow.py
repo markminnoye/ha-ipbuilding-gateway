@@ -42,7 +42,7 @@ from .room_mapping import apply_room_mappings, collect_unique_rooms
 
 
 class IPBuildingOptionsFlowHandler(OptionsFlow):
-    """Handle options for IPBuilding Gateway HA."""
+    """Handle options for IPBuilding Gateway Companion App."""
 
     @callback
     def async_get_options_flow(self) -> OptionsFlow:  # pragma: no cover - HA dispatches

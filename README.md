@@ -58,7 +58,7 @@ Platforms created by this integration: `light`, `switch`, `button`, `sensor`.
 ### 1. Companion integration (HACS, recommended)
 
 This integration is a **HACS custom repository** (not in the default store). Use
-the link below to add it in HACS, then download **IPBuilding Gateway HA** and
+the link below to add it in HACS, then download **IPBuilding Gateway Companion App** and
 restart Home Assistant.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&repository=ha-ipbuilding-gateway&category=integration)
@@ -72,7 +72,7 @@ https://my.home-assistant.io/redirect/hacs_repository/?owner=markminnoye&reposit
 If HACS shows *Repository … not found* or a broken confirmation dialog, add the
 repo manually: **HACS → Integrations → ⋮ → Custom repositories** →
 `https://github.com/markminnoye/ha-ipbuilding-gateway` (type **Integration**),
-then search and download **IPBuilding Gateway HA**.
+then search and download **IPBuilding Gateway Companion App**.
 
 ### 2. Gateway add-on (HA OS / Supervised)
 
@@ -98,7 +98,7 @@ Then follow the [add-on documentation](https://github.com/markminnoye/IPBuilding
 
 With the add-on **running** and the companion **installed**:
 
-**Settings → Devices & Services → Discovered** → **IPBuilding Gateway HA** →
+**Settings → Devices & Services → Discovered** → **IPBuilding Gateway Companion App** →
 **Add**
 
 On HA OS the add-on registers via **Supervisor discovery**. On a standalone
@@ -121,7 +121,7 @@ non-standard setups where Supervisor / mDNS discovery is blocked.
 
 ### Manual fallback
 
-Use **Settings → Devices & Services → Add integration → IPBuilding Gateway HA**
+Use **Settings → Devices & Services → Add integration → IPBuilding Gateway Companion App**
 when discovery is blocked (VLAN without mDNS reflector, remote host, etc.):
 
 - **Host** — IP address or hostname of the gateway
@@ -136,7 +136,7 @@ After the first successful setup, a **setup wizard** opens automatically (you
 can skip it). It runs a **field-bus discovery sweep** with a progress screen,
 then lets you map IPBuilding `room` names to Home Assistant **areas**.
 
-Re-run later via **Settings → Devices & Services → IPBuilding Gateway HA →
+Re-run later via **Settings → Devices & Services → IPBuilding Gateway Companion App →
 Configure → Run setup wizard again**.
 
 Physical IP1100PoE button entities are **enabled by default**. Channels marked
@@ -265,7 +265,7 @@ Channels marked `active: false` in the gateway `devices.json` appear as
 
 ## Removing the integration
 
-Go to **Settings → Devices & Services → IPBuilding Gateway HA**, select your
+Go to **Settings → Devices & Services → IPBuilding Gateway Companion App**, select your
 entry, and click **Delete**. This removes Home Assistant entities and the
 config entry only — the gateway add-on and `devices.json` are unchanged.
 
@@ -284,7 +284,7 @@ Use the [issue tracker](https://github.com/markminnoye/ha-ipbuilding-gateway/iss
 When reporting a bug, include:
 
 - Home Assistant version
-- Integration version (**Settings → Devices & Services → IPBuilding Gateway HA**)
+- Integration version (**Settings → Devices & Services → IPBuilding Gateway Companion App**)
 - Gateway add-on / standalone version (`GET /api/v1/status` → `version`)
 - Relevant logs (**Settings → System → Logs**, filter `ha_ipbuilding_gateway`)
 
