@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-08-30
+
+### Added
+- Persistent notification **Unknown IPBuilding input type** / **Onbekend IPBuilding inputtype** when the gateway reports `dialect_id: input.unknown.button_event`, with the type byte in the body.
+
+### Changed
+- **Canonical 8-hex button ids.** The companion accepts 8-, 10-, 14- and 16-hex button ids from the gateway and registers entities under the 8-hex form, so a `button_event` reaches the entity regardless of which id form the gateway sent. Requires gateway ≥ **1.7.0** for dialect/`type_hex` on `device_added`; older gateways still work for id canonicalisation.
+- Config-entry **version 2** migrates existing `event_<10 or 14 hex>` unique_ids and matching device identifiers to 8-hex. `entity_id` is left unchanged so names, areas, automations and blueprints survive the upgrade.
+
 ## [1.8.3] - 2026-08-23
 
 ### Fixed
@@ -619,7 +628,8 @@ all published as separate releases — upgrade in one step to
 - WebSocket coordinator with automatic reconnect
 - Dutch and English translations
 
-[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.3...HEAD
+[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.3...v1.9.0
 [1.8.3]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.2...v1.8.3
 [1.8.2]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.0...v1.8.1

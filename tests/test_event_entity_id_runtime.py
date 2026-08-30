@@ -63,10 +63,9 @@ def event_module():
 
 
 def test_suggested_object_id_is_hardware_id(event_module):
-    """The entity asks HA Core to use the raw hardware id as object_id.
+    """The entity asks HA Core to use the canonical 8-hex hardware id as object_id.
 
-    Result: HA generates ``event.2f8185190000df`` (no slugify, no
-    device-name contamination, no doubled room/name).
+    A 14-hex gateway id is collapsed so HA generates ``event.2f8185df``.
     """
     device = {"id": "2f8185190000df", "device_type": "input", "name": "Woonkamer hal L"}
     coordinator = MagicMock()
@@ -74,22 +73,30 @@ def test_suggested_object_id_is_hardware_id(event_module):
 
     button = event_module.IPBuildingEventButton(device, coordinator)
 
-    assert button.internal_integration_suggested_object_id == "2f8185190000df"
-    assert button._hardware_id == "2f8185190000df"
+    assert button.internal_integration_suggested_object_id == "2f8185df"
+    assert button._hardware_id == "2f8185df"
 
 
-def test_unique_id_remains_unchanged(event_module):
-    """Backwards-compat: the unique_id pattern is preserved across the
-    platform rename, so the HA entity-registry reconciles the new
-    event.* entries with the historical button.* entries on next start.
-    """
+def test_unique_id_uses_canonical_8_hex(event_module):
+    """unique_id is ``event_<8 hex>`` regardless of the gateway id form."""
     device = {"id": "2f8185190000df", "device_type": "input", "name": "Woonkamer hal L"}
     coordinator = MagicMock()
     coordinator.module_for_channel.return_value = None
 
     button = event_module.IPBuildingEventButton(device, coordinator)
 
-    assert button._attr_unique_id == "event_2f8185190000df"
+    assert button._attr_unique_id == "event_2f8185df"
+
+
+def test_already_canonical_8_hex_passthrough(event_module):
+    device = {"id": "2f8185df", "device_type": "input", "name": "Woonkamer hal L"}
+    coordinator = MagicMock()
+    coordinator.module_for_channel.return_value = None
+
+    button = event_module.IPBuildingEventButton(device, coordinator)
+
+    assert button._hardware_id == "2f8185df"
+    assert button._attr_unique_id == "event_2f8185df"
 
 
 def test_unique_id_differs_per_button(event_module):
@@ -111,5 +118,5 @@ def test_unique_id_differs_per_button(event_module):
     assert a.internal_integration_suggested_object_id != (
         b.internal_integration_suggested_object_id
     )
-    assert a._attr_unique_id == "event_2f8185190000df"
-    assert b._attr_unique_id == "event_cafebabe000001"
+    assert a._attr_unique_id == "event_2f8185df"
+    assert b._attr_unique_id == "event_cafeba01"

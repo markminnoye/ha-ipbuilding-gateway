@@ -28,6 +28,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .button_id import canonical_button_id
 from .const import DOMAIN
 from .coordinator import IPBuildingCoordinator
 from .entity import apply_active_registry_defaults, build_channel_device_info
@@ -109,7 +110,9 @@ class IPBuildingEventButton(EventEntity):
         device: dict[str, Any],
         coordinator: IPBuildingCoordinator,
     ) -> None:
-        hardware_id = device["id"]
+        raw_id = device["id"]
+        canonical = canonical_button_id(str(raw_id))
+        hardware_id = canonical if canonical is not None else raw_id
         name = device.get("name")
         self._device = device
         self._hardware_id = hardware_id
@@ -117,11 +120,12 @@ class IPBuildingEventButton(EventEntity):
         self._attr_unique_id = f"event_{hardware_id}"
         # HA Core's ``_async_derive_object_ids`` honours
         # ``Entity.internal_integration_suggested_object_id`` literally
-        # and uses it as the object_id. We set it to the raw hardware id
-        # (e.g. ``"2f8185190000df"``) so the resulting entity_id is
-        # ``event.<hardware_id>`` - a stable 1-to-1 mapping with the
-        # ``getButtons`` HTTP response, with no slugify / no
-        # device-name contamination and no doubled room/name.
+        # and uses it as the object_id. We set it to the canonical 8-hex
+        # hardware id (e.g. ``"2f8185df"``) so the resulting entity_id is
+        # ``event.<hardware_id>`` - a stable 1-to-1 mapping, with no
+        # slugify / no device-name contamination and no doubled room/name.
+        # Existing installs keep their pre-1.9.0 entity_id (e.g.
+        # ``event.dac46cc330``); only unique_id is migrated.
         self.internal_integration_suggested_object_id = self._hardware_id
         module = coordinator.module_for_channel(device)
         self._attr_device_info = build_channel_device_info(device, module)

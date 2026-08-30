@@ -18,6 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .button_id import canonical_button_id, canonicalise_button_device
 from .const import (
     CONF_API_PORT,
     CONF_API_HOST,
@@ -146,7 +147,7 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # coordinator via ``devices_snapshot()`` get a consistent dict on
         # every code path, and the in-memory state is no longer ahead of the
         # ``coordinator.data`` that the DataUpdateCoordinator exposes.
-        self._data = {d["id"]: d for d in devices if d.get("id")}
+        self._ingest_devices(devices)
         return self._data
 
     async def async_fetch_button_config(self) -> list[dict[str, Any]]:
@@ -573,14 +574,12 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 m["id"]: m for m in data.get("modules", []) if m.get("id")
             }
             self._notify_modules()
-            devices = data.get("devices", [])
-            self._data = {dev["id"]: dev for dev in devices}
+            devices = self._ingest_devices(data.get("devices", []))
             self._notify_all(devices)
             self._schedule_diff(devices)
         elif msg_type == "device_list":
             # Legacy format kept for backward compatibility.
-            devices = data.get("devices", [])
-            self._data = {dev["id"]: dev for dev in devices}
+            devices = self._ingest_devices(data.get("devices", []))
             self._notify_all(devices)
             self._schedule_diff(devices)
         elif msg_type == "state_changed":
@@ -618,6 +617,9 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         device_id = data.get("id")
         if not device_id:
             return
+        canonical = canonical_button_id(str(device_id))
+        if canonical is not None:
+            device_id = canonical
 
         device: dict[str, Any] = {
             "id": device_id,
@@ -630,6 +632,10 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "channel": data.get("channel"),
             "active": bool(data.get("active", True)),
         }
+        if dialect_id := data.get("dialect_id"):
+            device["dialect_id"] = dialect_id
+        if type_hex := data.get("type_hex"):
+            device["type_hex"] = type_hex
 
         already_known = device_id in self._data
         self._data[device_id] = {**self._data.get(device_id, {}), **device}
@@ -736,7 +742,46 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             link = path
 
         language = str(getattr(self.hass.config, "language", "en") or "en").lower()
-        if ha_device_id:
+        unknown = device.get("dialect_id") == "input.unknown.button_event"
+        type_hex = str(device.get("type_hex") or "").strip()
+        type_label = type_hex or ("onbekend" if language.startswith("nl") else "unknown")
+
+        if unknown:
+            if language.startswith("nl"):
+                title = "Onbekend IPBuilding inputtype"
+                if ha_device_id:
+                    message = (
+                        f"Er is een drukknop met onbekend inputtype ontdekt "
+                        f"(`{hw_id}`, typebyte `{type_label}`).\n\n"
+                        f"[Open apparaat-instellingen]({link}) om een naam "
+                        "en area toe te wijzen."
+                    )
+                else:
+                    message = (
+                        f"Er is een drukknop met onbekend inputtype ontdekt "
+                        f"(`{hw_id}` / `{entity_id}`, typebyte `{type_label}`).\n\n"
+                        f"Zoek deze entiteit onder "
+                        f"[Instellingen → Apparaten]({link}) "
+                        "om een naam en area toe te wijzen."
+                    )
+            else:
+                title = "Unknown IPBuilding input type"
+                if ha_device_id:
+                    message = (
+                        f"A wall button with an unknown input type was discovered "
+                        f"(`{hw_id}`, type byte `{type_label}`).\n\n"
+                        f"[Open device settings]({link}) to set a name "
+                        "and area."
+                    )
+                else:
+                    message = (
+                        f"A wall button with an unknown input type was discovered "
+                        f"(`{hw_id}` / `{entity_id}`, type byte `{type_label}`).\n\n"
+                        f"Find this entity under "
+                        f"[Settings → Devices]({link}) "
+                        "to set a name and area."
+                    )
+        elif ha_device_id:
             if language.startswith("nl"):
                 title = "Nieuwe IPBuilding drukknop"
                 message = (
@@ -798,8 +843,14 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._notify(dev.get("id", ""), dev)
 
     def _notify_button(self, data: dict) -> None:
-        """Notify button entities (routed by hardware id, not entity_id)."""
-        for cb in self._entity_listeners.get(f"button:{data.get('id')}", []):
+        """Notify button entities (routed by canonical hardware id)."""
+        raw_id = data.get("id")
+        key_id = raw_id
+        if raw_id:
+            canonical = canonical_button_id(str(raw_id))
+            if canonical is not None:
+                key_id = canonical
+        for cb in self._entity_listeners.get(f"button:{key_id}", []):
             try:
                 cb(data)
             except Exception:
@@ -1073,6 +1124,19 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # State access helpers
     # -------------------------------------------------------------------------
 
+    def _ingest_devices(self, devices: list[dict]) -> list[dict[str, Any]]:
+        """Canonicalise button ids and cache devices keyed by id.
+
+        Input/button devices are rewritten to the 8-hex canonical form so
+        snapshot, REST fallback and WS ``device_list`` all share one key
+        space. Channel ids are never rewritten.
+        """
+        ingested = [
+            canonicalise_button_device(d) for d in devices if isinstance(d, dict)
+        ]
+        self._data = {d["id"]: d for d in ingested if d.get("id")}
+        return ingested
+
     def get_device_state(self, entity_id: str) -> dict[str, Any] | None:
         """Return cached state for an entity."""
         return self._data.get(entity_id) if isinstance(self._data, dict) else None
@@ -1084,12 +1148,12 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def devices_snapshot(self) -> list[dict[str, Any]]:
         """Return the current device list from WS cache or REST fallback."""
         if isinstance(self._data, dict) and self._data:
-            return list(self._data.values())
+            return [canonicalise_button_device(d) for d in self._data.values()]
         raw = self.data
         if isinstance(raw, dict):
-            return list(raw.values())
+            return [canonicalise_button_device(d) for d in raw.values()]
         if isinstance(raw, list):
-            return raw
+            return [canonicalise_button_device(d) for d in raw]
         return []
 
     def seed_known_devices(self, devices: list[dict[str, Any]] | None = None) -> None:

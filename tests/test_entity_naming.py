@@ -172,9 +172,9 @@ def test_apply_active_registry_defaults_leaves_active_entity():
 def test_registry_unique_ids_for_input_button():
     device = {"id": "2f8185190000df", "device_type": "input"}
     assert entity_mod.registry_unique_ids_for_device(device) == [
-        "2f8185190000df",
-        "2f8185190000df_power",
-        "event_2f8185190000df",
+        "2f8185df",
+        "2f8185df_power",
+        "event_2f8185df",
     ]
 
 
@@ -184,3 +184,30 @@ def test_registry_unique_ids_for_relay_channel():
         "10.10.1.30:relay:0",
         "10.10.1.30:relay:0_power",
     ]
+
+
+def test_build_channel_device_info_canonicalises_button_id():
+    info = entity_mod.build_channel_device_info(
+        {
+            "id": "2f8185190000df",
+            "name": "Hal",
+            "device_type": "input",
+            "semantic_type": "button",
+        },
+        None,
+    )
+    assert info["identifiers"] == {(entity_mod.DOMAIN, "2f8185df")}
+    assert info["name"] == "Hal"
+
+
+def test_build_channel_device_info_leaves_channel_id():
+    info = entity_mod.build_channel_device_info(
+        {
+            "id": "10.10.1.30-0",
+            "name": "Keuken LED",
+            "device_type": "relay",
+        },
+        None,
+    )
+    assert info["identifiers"] == {(entity_mod.DOMAIN, "10.10.1.30-0")}
+    assert info["name"] == "Keuken LED"

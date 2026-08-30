@@ -133,7 +133,16 @@ def test_en_translations_contain_new_keys() -> None:
 
 def test_manifest_version_bumped() -> None:
     manifest = json.loads((_COMP / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.8.3"
+    assert manifest["version"] == "1.9.0"
+
+
+def test_changelog_has_1_9_0_entry() -> None:
+    text = (_REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [1.9.0]" in text
+    assert "Canonical 8-hex button ids" in text
+    assert "Unknown IPBuilding input type" in text
+    assert "## [1.8.3]" in text
+    assert "ColorMode.BRIGHTNESS" in text
 
 
 def test_changelog_has_1_8_3_entry() -> None:
@@ -152,4 +161,4 @@ def test_changelog_has_1_7_2_entry() -> None:
     text = (_REPO / "CHANGELOG.md").read_text(encoding="utf-8")
     assert "## [1.7.2]" in text
     assert "Modules opzoeken op de veldbus" in text
-    assert "Knoppen en module-info bijwerken" in text
+    assert "Refresh buttons and module info" in text
