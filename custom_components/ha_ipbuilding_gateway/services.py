@@ -23,6 +23,7 @@ already gets native toggle semantics for free.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any
 
@@ -58,11 +59,29 @@ async def _resolve_device_id(hass: HomeAssistant, entity_id: str) -> str | None:
     return entry.unique_id
 
 
+async def _async_extract_entity_ids(
+    hass: HomeAssistant, call: ServiceCall
+) -> set[str]:
+    """Extract entity ids with the helper signature this HA version provides.
+
+    ``hacs.json`` still allows Home Assistant 2023.8. Before 2025.10 the
+    helper was ``async_extract_entity_ids(hass, service_call)``. From
+    2025.10 it is ``async_extract_entity_ids(service_call)`` and reads
+    ``service_call.hass`` (core PR #152738). 2026.10 removed the shim that
+    accepted the old argument, so passing ``hass`` raises
+    ``'HomeAssistant' object has no attribute 'hass'``.
+    """
+    parameters = inspect.signature(async_extract_entity_ids).parameters
+    if next(iter(parameters), None) == "hass":
+        return await async_extract_entity_ids(hass, call)
+    return await async_extract_entity_ids(call)
+
+
 async def _dispatch(
     hass: HomeAssistant, coordinator: Any, action: str, call: ServiceCall
 ) -> None:
     """Resolve every targeted entity and send ``action`` to the gateway."""
-    entity_ids = await async_extract_entity_ids(hass, call)
+    entity_ids = await _async_extract_entity_ids(hass, call)
     if not entity_ids:
         raise HomeAssistantError(f"{action}: no target entity")
     for entity_id in entity_ids:
