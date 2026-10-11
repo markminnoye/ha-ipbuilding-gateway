@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-11
+
+### Fixed
+- Dimmen door lang te drukken werkt weer.
+
 ## [1.9.0] - 2026-08-30
 
 ### Added
@@ -629,7 +634,8 @@ all published as separate releases — upgrade in one step to
 - WebSocket coordinator with automatic reconnect
 - Dutch and English translations
 
-[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.3...v1.9.0
 [1.8.3]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.2...v1.8.3
 [1.8.2]: https://github.com/markminnoye/ha-ipbuilding-gateway/compare/v1.8.1...v1.8.2
