@@ -113,7 +113,9 @@ new devices that did not exist when the mapping was first saved.
 
 Light/switch entities send **`DIM`** commands (not relay-style `ON`/`OFF`) for
 `device_type == "dimmer"`. Brightness follows the service call, last known
-level, or 100%.
+level, or 100%. A plain `light.toggle` (or dimmer switch toggle) always uses
+native `TOGGLE` (`T<ch>991000`), including when HA attaches unused params such
+as `transition`. Slider / `light.turn_off` still send `DIM 0`.
 
 ### Button events (v0.4.0+)
 

@@ -100,6 +100,18 @@ class IPBuildingSwitch(SwitchEntity):
             return
         await self._coordinator.async_send_command(self._entity_id, "OFF")
 
+    async def async_toggle(self, **kwargs: Any) -> None:
+        """Toggle the switch.
+
+        Dimmer channels use native ``TOGGLE`` (``T<ch>991000``) instead of
+        HA's turn_off/turn_on → ``DIM 0`` / ``DIM 100`` path, which would
+        trigger EEPROM Soft UIT. Relays keep the default on/off toggle.
+        """
+        if self._is_dimmer:
+            await self._coordinator.async_send_command(self._entity_id, "TOGGLE")
+            return
+        await super().async_toggle(**kwargs)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

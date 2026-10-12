@@ -29,9 +29,15 @@ def test_dimmer_plain_toggle_uses_native_toggle_action() -> None:
     assert '"TOGGLE"' in src, (
         "the dimmer toggle path must dispatch the gateway TOGGLE action"
     )
-    # Non-dimmer / parametrised toggles must still defer to the base impl.
+    assert "_toggle_requests_explicit_on" in src, (
+        "dimmer toggle must distinguish explicit on-params from unused kwargs"
+    )
+    assert "and not kwargs" not in src, (
+        "empty-kwargs must not be the TOGGLE gate — HA often attaches transition"
+    )
+    # Relays still defer to the base impl; dimmers no longer do.
     assert "super().async_toggle" in src, (
-        "relay / parametrised toggles must fall back to LightEntity.async_toggle"
+        "relay toggles must fall back to LightEntity.async_toggle"
     )
 
 
@@ -48,3 +54,13 @@ def test_dimmer_advertises_brightness_in_init() -> None:
         "light.py __init__ must set ColorMode.BRIGHTNESS for dimmers"
     )
     assert "_is_dimmer" in init and "ColorMode.BRIGHTNESS" in init
+
+
+_SWITCH = _REPO / "custom_components" / "ha_ipbuilding_gateway" / "switch.py"
+
+
+def test_dimmer_switch_toggle_uses_native_toggle_action() -> None:
+    """A dimmer switch toggle must send gateway TOGGLE, not DIM 0."""
+    src = _SWITCH.read_text(encoding="utf-8")
+    assert "async def async_toggle" in src
+    assert '"TOGGLE"' in src

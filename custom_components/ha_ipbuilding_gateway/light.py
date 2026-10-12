@@ -28,6 +28,40 @@ log = logging.getLogger(__name__)
 # Key in devices.json that indicates a light
 _LIGHT_SEMANTIC_TYPES = {SEMANTIC_TYPE_LIGHT}
 
+# HA service-data keys that mean "turn on at this level/colour", not native
+# TOGGLE. ``transition`` is intentionally absent: HA may attach it to every
+# ``light.toggle``, and the IP0300PoE has no per-command fade duration on
+# UDP/1001 (EEPROM Soft AAN/UIT applies to ``S``/``C`` only).
+_TOGGLE_EXPLICIT_ON_KEYS = (
+    "brightness",
+    "brightness_pct",
+    "rgb_color",
+    "hs_color",
+    "xy_color",
+    "rgbw_color",
+    "rgbww_color",
+    "color_temp",
+    "color_temp_kelvin",
+    "kelvin",
+    "white",
+    "effect",
+    "profile",
+    "flash",
+)
+_ZERO_MEANS_OFF = frozenset({"brightness", "brightness_pct", "white"})
+
+
+def _toggle_requests_explicit_on(kwargs: dict[str, Any]) -> bool:
+    """True when HA toggle should turn on at a given level/color, not native TOGGLE."""
+    for key in _TOGGLE_EXPLICIT_ON_KEYS:
+        if key not in kwargs:
+            continue
+        value = kwargs[key]
+        if key in _ZERO_MEANS_OFF and not value:
+            continue
+        return True
+    return False
+
 
 class IPBuildingLight(LightEntity):
     """A light entity backed by the IPBuilding Gateway via WebSocket."""
@@ -142,16 +176,22 @@ class IPBuildingLight(LightEntity):
 
         Dimmer channels have a native wire toggle (``T<ch>991000``) that flips
         between off and the module's *own* last-level memory — matching the
-        physical IPBuilding wall-button (short press). Routing a plain toggle
-        through it, instead of HA's turn_off/turn_on → DIM, restores the exact
-        last level even when HA's cached brightness is stale (e.g. after a peer
-        button press the gateway never saw). A parametrised toggle (e.g. with a
-        brightness) and relay channels fall back to the default on/off toggle.
+        physical IPBuilding wall-button (short press). A plain ``light.toggle``
+        always uses that frame, even when HA attaches unused params such as
+        ``transition``. ``turn_off`` / slider-to-zero stay on ``DIM 0``.
+
+        Exception: a toggle that asks to come *on* at an explicit brightness
+        or colour uses ``DIM`` instead of the module's last-level memory.
+        Relays fall back to HA's default on/off toggle. Unknown dimmer state
+        (``is_on is None``) also uses native ``TOGGLE``.
         """
-        if self._is_dimmer and not kwargs:
-            await self._coordinator.async_send_command(self._entity_id, "TOGGLE")
+        if not self._is_dimmer:
+            await super().async_toggle(**kwargs)
             return
-        await super().async_toggle(**kwargs)
+        if self.is_on is False and _toggle_requests_explicit_on(kwargs):
+            await self.async_turn_on(**kwargs)
+            return
+        await self._coordinator.async_send_command(self._entity_id, "TOGGLE")
 
 
 async def async_setup_entry(
