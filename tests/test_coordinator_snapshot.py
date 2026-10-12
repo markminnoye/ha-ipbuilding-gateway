@@ -265,3 +265,72 @@ def test_async_update_data_failure_leaves_data_dict():
 
     assert result == {}
     assert coord._data == {}
+
+
+def test_async_update_data_canonicalises_button_ids_not_channels(monkeypatch):
+    """REST snapshot rewrite: 14-hex buttons become 8-hex; channel ids stay."""
+    coord = _build_coordinator(data=[])
+
+    class _StubSession:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "_StubSession":
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            return None
+
+        def get(self, url, timeout=None):
+            return _StubResponse()
+
+    class _StubResponse:
+        status = 200
+
+        async def __aenter__(self) -> "_StubResponse":
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            return None
+
+        async def json(self) -> dict:
+            return {
+                "devices": [
+                    {
+                        "id": "2f8185190000df",
+                        "device_type": "input",
+                        "semantic_type": "button",
+                    },
+                    {"id": "10.10.1.30-0", "device_type": "relay"},
+                ]
+            }
+
+    async def _noop() -> None:
+        return None
+
+    monkeypatch.setattr(coordinator_mod.aiohttp, "ClientSession", _StubSession)
+    monkeypatch.setattr(coord, "async_fetch_gateway_status", _noop)
+    monkeypatch.setattr(coord, "async_fetch_modules", _noop)
+
+    import asyncio
+
+    result = asyncio.run(coord._async_update_data())
+
+    assert set(result.keys()) == {"2f8185df", "10.10.1.30-0"}
+    assert result["2f8185df"]["id"] == "2f8185df"
+    assert result["10.10.1.30-0"]["id"] == "10.10.1.30-0"
+
+
+def test_devices_snapshot_canonicalises_legacy_list():
+    coord = _build_coordinator(
+        data=[
+            {
+                "id": "dac46cc330",
+                "device_type": "input",
+                "semantic_type": "button",
+            },
+            {"id": "10.10.1.30-0", "device_type": "relay"},
+        ]
+    )
+    snapshot = coord.devices_snapshot()
+    assert [d["id"] for d in snapshot] == ["dac46cc3", "10.10.1.30-0"]

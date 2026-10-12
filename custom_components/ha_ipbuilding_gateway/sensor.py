@@ -271,6 +271,9 @@ class IPBuildingPowerSensor(SensorEntity):
     def _update_from_state(self, state: dict) -> None:
         """Update the sensor value from a gateway state_changed message."""
         self._attr_native_value = state.get("current_watt", 0)
+        self._attr_extra_state_attributes = {
+            "max_watt": state.get("max_watt"),
+        }
 
 
 async def async_setup_entry(

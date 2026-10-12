@@ -19,7 +19,7 @@ def gateway_device_info(entry: ConfigEntry, coordinator: IPBuildingCoordinator) 
     Identifiers use ``entry.entry_id`` (HA's config-entry UUID) so multiple
     gateway installations remain independent. ``model`` is the standalone
     gateway string; a follow-up issue can add Supervisor add-on detection
-    to switch this to "IPBuilding Gateway HA Add-on" in that case.
+    to switch this to "IPBuilding Gateway Add-on" in that case.
     """
     status = coordinator.gateway_status
     return DeviceInfo(

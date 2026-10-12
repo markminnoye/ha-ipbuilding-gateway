@@ -9,6 +9,8 @@ import types
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 
 class _StubDataUpdateCoordinator:
     def __init__(self, *args, **kwargs) -> None:
@@ -164,6 +166,28 @@ _ensure_stub(
     ),
 )
 
+
+@pytest.fixture(autouse=True)
+def _restore_registry_stubs() -> None:
+    """Keep registry stubs intact if a later test module overwrote them at import."""
+    er_mod = _ensure_stub(
+        "homeassistant.helpers.entity_registry", async_get=_er_async_get
+    )
+    dr_mod = _ensure_stub(
+        "homeassistant.helpers.device_registry", async_get=_dr_async_get
+    )
+    net_mod = _ensure_stub(
+        "homeassistant.helpers.network", get_url=_get_url
+    )
+    helpers = _ensure_stub_package("homeassistant.helpers")
+    helpers.entity_registry = er_mod
+    helpers.device_registry = dr_mod
+    helpers.network = net_mod
+    _ENTITY_REGISTRY._by_entity_id.clear()
+    _ENTITY_REGISTRY._by_unique.clear()
+    _DEVICE_REGISTRY._by_identifiers.clear()
+
+
 _REPO = Path(__file__).resolve().parents[1]
 _COMP_DIR = _REPO / "custom_components" / "ha_ipbuilding_gateway"
 
@@ -221,7 +245,7 @@ def test_button_device_added_creates_entity_and_notification() -> None:
     coord = _build_coordinator()
     added: list[list[dict]] = []
     coord.register_platform("event", lambda devices: added.append(devices))
-    _seed_button_registries("2f8185190000df", "ha-device-abc")
+    _seed_button_registries("2f8185df", "ha-device-abc")
 
     async def _run() -> None:
         await coord._handle_message(
@@ -242,19 +266,20 @@ def test_button_device_added_creates_entity_and_notification() -> None:
 
     asyncio.run(_run())
 
-    assert "2f8185190000df" in coord._data
-    assert coord._data["2f8185190000df"]["semantic_type"] == "button"
-    assert coord._data["2f8185190000df"]["name"] == "Button 2f8185190000df"
-    assert ("2f8185190000df", True) in coord._known_devices
+    assert "2f8185df" in coord._data
+    assert "2f8185190000df" not in coord._data
+    assert coord._data["2f8185df"]["semantic_type"] == "button"
+    assert coord._data["2f8185df"]["name"] == "Button 2f8185df"
+    assert ("2f8185df", True) in coord._known_devices
     assert len(added) == 1
-    assert added[0][0]["id"] == "2f8185190000df"
+    assert added[0][0]["id"] == "2f8185df"
 
     assert len(coord.hass.services.calls) == 1
     domain, service, payload = coord.hass.services.calls[0]
     assert domain == "persistent_notification"
     assert service == "create"
-    assert payload["notification_id"] == f"{DOMAIN}_button_2f8185190000df"
-    assert "2f8185190000df" in payload["message"]
+    assert payload["notification_id"] == f"{DOMAIN}_button_2f8185df"
+    assert "2f8185df" in payload["message"]
     assert payload["title"] == "New IPBuilding button"
     assert (
         "http://homeassistant.local:8123/config/devices/device/ha-device-abc"
@@ -267,7 +292,7 @@ def test_button_device_added_notification_nl() -> None:
     coord = _build_coordinator()
     coord.hass.config.language = "nl"
     coord.register_platform("event", lambda _devices: None)
-    _seed_button_registries("aaaaaaaaaaaaaa", "ha-device-nl")
+    _seed_button_registries("aaaaaaaa", "ha-device-nl")
 
     async def _run() -> None:
         await coord._handle_message(
@@ -318,7 +343,7 @@ def test_duplicate_button_device_added_does_not_recreate() -> None:
     coord = _build_coordinator()
     added: list[list[dict]] = []
     coord.register_platform("event", lambda devices: added.append(devices))
-    _seed_button_registries("2f8185190000df", "ha-device-dup")
+    _seed_button_registries("2f8185df", "ha-device-dup")
     msg = {
         "type": "device_added",
         "semantic_type": "button",
@@ -336,3 +361,99 @@ def test_duplicate_button_device_added_does_not_recreate() -> None:
 
     assert len(added) == 1
     assert len(coord.hass.services.calls) == 1
+
+
+def test_button_event_14hex_reaches_8hex_listener() -> None:
+    coord = _build_coordinator()
+    received: list[dict] = []
+    coord.register_entity("button:2f8185df", received.append)
+
+    async def _run() -> None:
+        await coord._handle_message(
+            {
+                "type": "button_event",
+                "id": "2f8185190000df",
+                "action": "press",
+            }
+        )
+
+    asyncio.run(_run())
+
+    assert len(received) == 1
+    assert received[0]["action"] == "press"
+
+
+def test_button_event_8hex_reaches_8hex_listener() -> None:
+    coord = _build_coordinator()
+    received: list[dict] = []
+    coord.register_entity("button:2f8185df", received.append)
+
+    async def _run() -> None:
+        await coord._handle_message(
+            {
+                "type": "button_event",
+                "id": "2f8185df",
+                "action": "press",
+            }
+        )
+
+    asyncio.run(_run())
+
+    assert len(received) == 1
+    assert received[0]["id"] == "2f8185df"
+
+
+def test_unknown_dialect_notification_en() -> None:
+    coord = _build_coordinator()
+    coord.register_platform("event", lambda _devices: None)
+    _seed_button_registries("dac46cc3", "ha-device-unknown")
+
+    async def _run() -> None:
+        await coord._handle_message(
+            {
+                "type": "device_added",
+                "semantic_type": "button",
+                "id": "dac46c100000c3",
+                "device_type": "input",
+                "active": True,
+                "dialect_id": "input.unknown.button_event",
+                "type_hex": "01",
+            }
+        )
+        await _drain(coord.hass)
+
+    asyncio.run(_run())
+
+    payload = coord.hass.services.calls[0][2]
+    assert payload["title"] == "Unknown IPBuilding input type"
+    assert "01" in payload["message"]
+    assert "dac46cc3" in payload["message"]
+    assert payload["notification_id"] == f"{DOMAIN}_button_dac46cc3"
+
+
+def test_unknown_dialect_notification_nl() -> None:
+    coord = _build_coordinator()
+    coord.hass.config.language = "nl"
+    coord.register_platform("event", lambda _devices: None)
+    _seed_button_registries("dac46cc3", "ha-device-unknown-nl")
+
+    async def _run() -> None:
+        await coord._handle_message(
+            {
+                "type": "device_added",
+                "semantic_type": "button",
+                "id": "dac46cc330",
+                "device_type": "input",
+                "active": True,
+                "dialect_id": "input.unknown.button_event",
+                "type_hex": "55",
+            }
+        )
+        await _drain(coord.hass)
+
+    asyncio.run(_run())
+
+    payload = coord.hass.services.calls[0][2]
+    assert payload["title"] == "Onbekend IPBuilding inputtype"
+    assert "55" in payload["message"]
+    assert "typebyte" in payload["message"]

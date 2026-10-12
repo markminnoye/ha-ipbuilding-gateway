@@ -1,4 +1,4 @@
-"""Config flow for IPBuilding Gateway HA.
+"""Config flow for IPBuilding Gateway Companion App.
 
 Three discovery paths are supported, modelled after the Music Assistant
 pattern:
@@ -91,9 +91,9 @@ async def _validate_gateway(host: str, port: int) -> tuple[bool, str | None, str
 
 
 class IPBuildingConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for IPBuilding Gateway HA."""
+    """Handle a config flow for IPBuilding Gateway Companion App."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         self._discovery_info: GatewayDiscoveryInfo | None = None

@@ -47,7 +47,14 @@ class IPBuildingLight(LightEntity):
         self._entity_id = device["id"]
         self._semantic_type: str = device.get("semantic_type", "light")
         # Dimmer modules use DIM commands on the gateway; relays use ON/OFF.
+        # Advertise BRIGHTNESS at construct time — HA caches
+        # supported_color_modes at registration. Waiting for the first
+        # ``level`` (old behaviour) hid the slider whenever status-poll
+        # never returned a level (seen on older 0–10V modules).
         self._is_dimmer: bool = device.get("device_type") == "dimmer"
+        if self._is_dimmer:
+            self._attr_color_mode = ColorMode.BRIGHTNESS
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
         self._attr_unique_id = device["id"]
         # 3-tier device tree: channel rolls up to its parent module via
         # via_device. Module-device is created implicitly by HA on first
@@ -101,17 +108,13 @@ class IPBuildingLight(LightEntity):
         else:
             self._attr_is_on = raw in ("on", "ON")
 
-        # Dimmer-specific: extract brightness level when the device is a dimmer module.
+        # Dimmer-specific: keep brightness in sync. Color modes are set
+        # in ``__init__`` (BRIGHTNESS only — HA 2026.3 rejects mixing
+        # BRIGHTNESS with ONOFF). Level may be absent after a restart.
         if self._is_dimmer and "level" in state:
             level = state.get("level")
             if level is not None:
                 self._attr_brightness = round(255 * level / 100)
-                # HA 2026.3 enforces strict supported_color_modes validation:
-                # BRIGHTNESS and ONOFF cannot both be present in the set.
-                # Dimmer modules support BRIGHTNESS only; ONOFF is implied
-                # by brightness=0 and is exposed via the brightness attribute.
-                self._attr_color_mode = ColorMode.BRIGHTNESS
-                self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""

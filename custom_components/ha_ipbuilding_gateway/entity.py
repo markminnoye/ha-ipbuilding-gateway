@@ -13,6 +13,7 @@ import re
 
 from typing import Any
 
+from .button_id import canonical_button_id
 from .const import (
     DEVICE_TYPE_DIMMER,
     DEVICE_TYPE_INPUT,
@@ -161,6 +162,12 @@ def registry_unique_ids_for_device(device: dict[str, Any]) -> list[str]:
     dev_id = device.get("id")
     if not dev_id:
         return []
+    if device.get("device_type") == DEVICE_TYPE_INPUT or device.get(
+        "semantic_type"
+    ) == SEMANTIC_TYPE_BUTTON:
+        canonical = canonical_button_id(str(dev_id))
+        if canonical is not None:
+            dev_id = canonical
     unique_ids = [dev_id, f"{dev_id}_power"]
     if device.get("device_type") == DEVICE_TYPE_INPUT:
         unique_ids.append(f"event_{dev_id}")
@@ -217,8 +224,18 @@ def build_channel_device_info(
     module-device in the registry on first reference.
     """
     role = device.get("device_type") or (module or {}).get("type")
+    device_id = device["id"]
+    # Shared by channels (``10.10.1.30-0``) AND buttons. Canonicalise only
+    # input/button devices; never overwrite a channel id. If the helper
+    # returns None, keep the original id.
+    if device.get("device_type") == DEVICE_TYPE_INPUT or device.get(
+        "semantic_type"
+    ) == SEMANTIC_TYPE_BUTTON:
+        canonical = canonical_button_id(str(device_id))
+        if canonical is not None:
+            device_id = canonical
     info: dict[str, Any] = {
-        "identifiers": {(DOMAIN, device["id"])},
+        "identifiers": {(DOMAIN, device_id)},
         "name": device.get("name", device["id"]),
         "manufacturer": "IPBuilding",
         "model": module_type_label_short(role),

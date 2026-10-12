@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
+    entity_registry as er,
 )
 
 from .blueprints import async_install_packaged_blueprints
@@ -24,6 +25,26 @@ from .room_mapping import apply_room_mappings, collect_unique_rooms, should_offe
 from .services import async_register_services, async_unregister_services
 
 log = logging.getLogger(__name__)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate a config entry to the current version.
+
+    Version 2: rewrite 10-hex and 14-hex button unique_ids and device
+    identifiers to the canonical 8-hex form. ``entity_id`` is left
+    unchanged so names, areas, automations and blueprints survive.
+    """
+    if entry.version < 2:
+        from .button_id import apply_registry_migration
+
+        apply_registry_migration(
+            er.async_get(hass),
+            dr.async_get(hass),
+            config_entry_id=entry.entry_id,
+            domain=DOMAIN,
+        )
+        hass.config_entries.async_update_entry(entry, version=2)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

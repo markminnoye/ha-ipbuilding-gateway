@@ -1,5 +1,5 @@
 {
-  "name": "IPBuilding Gateway HA",
+  "name": "IPBuilding Gateway Companion App",
   "country": ["NL", "BE"],
   "homeassistant": "2023.8.0"
 }

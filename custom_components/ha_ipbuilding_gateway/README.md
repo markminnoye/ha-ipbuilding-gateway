@@ -1,4 +1,4 @@
-# IPBuilding Gateway HA — custom component
+# IPBuilding Gateway Companion App — custom component
 
 ## Overview
 

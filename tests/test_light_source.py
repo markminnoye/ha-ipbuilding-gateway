@@ -33,3 +33,18 @@ def test_dimmer_plain_toggle_uses_native_toggle_action() -> None:
     assert "super().async_toggle" in src, (
         "relay / parametrised toggles must fall back to LightEntity.async_toggle"
     )
+
+
+def test_dimmer_advertises_brightness_in_init() -> None:
+    """Dimmer lights must declare BRIGHTNESS before the first level arrives.
+
+    HA caches supported_color_modes at entity registration. Setting it only
+    inside ``_update_from_state`` when ``level`` is present hid the slider
+    on modules that never answer a status poll.
+    """
+    src = _LIGHT.read_text(encoding="utf-8")
+    init = src.split("async def async_added_to_hass", 1)[0]
+    assert "ColorMode.BRIGHTNESS" in init, (
+        "light.py __init__ must set ColorMode.BRIGHTNESS for dimmers"
+    )
+    assert "_is_dimmer" in init and "ColorMode.BRIGHTNESS" in init
