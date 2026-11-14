@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-11-14
+
+### Added
+- Home Assistant `transition` support on dimmer `LightEntity` (`LightEntityFeature.TRANSITION`), translated to gateway `fade` (`0`–`255`) via `transition_to_fade` (provisional ~0.2 s/unit scale) for `DIM`, `ON`, and `OFF` commands.
+
+### Fixed
+- Dimmer `light.toggle` ignores unused Home Assistant kwargs such as `transition` and continues to dispatch native gateway `TOGGLE`.
+
 ## [1.9.1] - 2026-10-11
 
 ### Fixed
