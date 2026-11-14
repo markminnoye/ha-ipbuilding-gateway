@@ -11,9 +11,11 @@ from typing import Any, Callable
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
+    ATTR_TRANSITION,
     ColorMode,
     LightEntity,
     LightEntityDescription,
+    LightEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -28,10 +30,30 @@ log = logging.getLogger(__name__)
 # Key in devices.json that indicates a light
 _LIGHT_SEMANTIC_TYPES = {SEMANTIC_TYPE_LIGHT}
 
+# Provisional transition->fade scale (~0.2 s per gateway fade unit, range 0..255).
+# Isolated in `transition_to_fade` pending physical dimmer multimeter calibration.
+_SECONDS_PER_FADE_UNIT = 0.2
+
+
+def transition_to_fade(
+    transition: float,
+    from_level: int | None = None,
+    to_level: int | None = None,
+) -> int:
+    """Convert Home Assistant transition duration (seconds) to gateway fade (0-255).
+
+    Provisional linear mapping at ~0.2 s per unit (`fade = 0` is instant).
+    `from_level` and `to_level` (0-100%) are accepted so calibration can later
+    account for per-step vs. total-duration scaling on the physical dimmer
+    without changing call sites.
+    """
+    _ = (from_level, to_level)
+    return max(0, min(255, round(float(transition) / _SECONDS_PER_FADE_UNIT)))
+
+
 # HA service-data keys that mean "turn on at this level/colour", not native
 # TOGGLE. ``transition`` is intentionally absent: HA may attach it to every
-# ``light.toggle``, and the IP0300PoE has no per-command fade duration on
-# UDP/1001 (EEPROM Soft AAN/UIT applies to ``S``/``C`` only).
+# ``light.toggle``, and native ``TOGGLE`` does not accept a fade parameter.
 _TOGGLE_EXPLICIT_ON_KEYS = (
     "brightness",
     "brightness_pct",
@@ -89,6 +111,7 @@ class IPBuildingLight(LightEntity):
         if self._is_dimmer:
             self._attr_color_mode = ColorMode.BRIGHTNESS
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+            self._attr_supported_features = LightEntityFeature.TRANSITION
         self._attr_unique_id = device["id"]
         # 3-tier device tree: channel rolls up to its parent module via
         # via_device. Module-device is created implicitly by HA on first
@@ -150,6 +173,22 @@ class IPBuildingLight(LightEntity):
             if level is not None:
                 self._attr_brightness = round(255 * level / 100)
 
+    async def _async_dim(self, level: int, kwargs: dict[str, Any]) -> None:
+        """Send a DIM command, translating optional HA transition to gateway fade."""
+        transition = kwargs.get(ATTR_TRANSITION)
+        if transition is None:
+            await self._coordinator.async_send_command(self._entity_id, "DIM", level)
+            return
+        from_level = (
+            round(self._attr_brightness * 100 / 255)
+            if self._attr_brightness is not None
+            else None
+        )
+        fade = transition_to_fade(transition, from_level=from_level, to_level=level)
+        await self._coordinator.async_send_command(
+            self._entity_id, "DIM", level, fade=fade
+        )
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
         if self._is_dimmer:
@@ -158,16 +197,14 @@ class IPBuildingLight(LightEntity):
                 level = 100
             else:
                 level = max(1, round(brightness * 100 / 255))
-            await self._coordinator.async_send_command(
-                self._entity_id, "DIM", level
-            )
+            await self._async_dim(level, kwargs)
             return
         await self._coordinator.async_send_command(self._entity_id, "ON")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
         if self._is_dimmer:
-            await self._coordinator.async_send_command(self._entity_id, "DIM", 0)
+            await self._async_dim(0, kwargs)
             return
         await self._coordinator.async_send_command(self._entity_id, "OFF")
 

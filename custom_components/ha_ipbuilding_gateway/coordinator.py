@@ -1093,11 +1093,14 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Command sending
     # -------------------------------------------------------------------------
 
+    _FADE_ACTIONS = frozenset({"DIM", "ON", "OFF"})
+
     async def async_send_command(
         self,
         entity_id: str,
         action: str,
         value: int | None = None,
+        fade: int | None = None,
     ) -> bool:
         """Send a command to the gateway via WebSocket.
 
@@ -1111,10 +1114,14 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         msg: dict[str, Any] = {"type": "command", "id": entity_id, "action": action}
         if value is not None:
             msg["value"] = value
+        if fade is not None and action in self._FADE_ACTIONS:
+            if isinstance(fade, bool) or not isinstance(fade, int):
+                raise ValueError(f"fade must be an integer 0..255, got {fade!r}")
+            msg["fade"] = max(0, min(255, fade))
 
         try:
             await self._ws.send_json(msg)
-            log.debug("Command sent: %s %s %s", entity_id, action, value)
+            log.debug("Command sent: %s %s %s fade=%s", entity_id, action, value, fade)
             return True
         except Exception as exc:
             log.warning("Failed to send command: %s", exc)
