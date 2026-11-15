@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-11-15
+
+### Changed
+- Calibrated `transition_to_fade` scale from `0.2` s/unit to `0.1` s/unit (`fade = 30` ≈ 3 s, `255` ≈ 25.5 s) based on 25 fps luma measurements on IP0300PoE.
+
 ## [1.9.2] - 2026-11-14
 
 ### Added

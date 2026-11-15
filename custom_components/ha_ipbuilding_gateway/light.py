@@ -30,9 +30,10 @@ log = logging.getLogger(__name__)
 # Key in devices.json that indicates a light
 _LIGHT_SEMANTIC_TYPES = {SEMANTIC_TYPE_LIGHT}
 
-# Provisional transition->fade scale (~0.2 s per gateway fade unit, range 0..255).
-# Isolated in `transition_to_fade` pending physical dimmer multimeter calibration.
-_SECONDS_PER_FADE_UNIT = 0.2
+# Calibrated transition->fade scale (~0.1 s per gateway fade unit, range 0..255).
+# Calibrated 2026-11-15 via 25 fps luma capture on IP0300PoE across fade=5..255
+# (fade=30 ≈ 3 s, 60 ≈ 6 s, 120 ≈ 12 s, 180 ≈ 17 s, 255 ≈ 25 s).
+_SECONDS_PER_FADE_UNIT = 0.1
 
 
 def transition_to_fade(
@@ -42,9 +43,8 @@ def transition_to_fade(
 ) -> int:
     """Convert Home Assistant transition duration (seconds) to gateway fade (0-255).
 
-    Provisional linear mapping at ~0.2 s per unit (`fade = 0` is instant).
-    `from_level` and `to_level` (0-100%) are accepted so calibration can later
-    account for per-step vs. total-duration scaling on the physical dimmer
+    Linear mapping at ~0.1 s per unit (`fade = 0` is instant, `255` ≈ 25.5 s).
+    `from_level` and `to_level` (0-100%) are accepted for future curve tweaks
     without changing call sites.
     """
     _ = (from_level, to_level)

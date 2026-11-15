@@ -133,11 +133,12 @@ def test_en_translations_contain_new_keys() -> None:
 
 def test_manifest_version_bumped() -> None:
     manifest = json.loads((_COMP / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.9.2"
+    assert manifest["version"] == "1.9.3"
 
 
-def test_changelog_has_1_9_2_entry() -> None:
+def test_changelog_has_1_9_3_entry() -> None:
     text = (_REPO / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert "## [1.9.3]" in text
     assert "## [1.9.2]" in text
     assert "## [1.9.1]" in text
     assert "Dimmen door lang te drukken werkt weer." in text

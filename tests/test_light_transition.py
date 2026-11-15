@@ -82,11 +82,12 @@ class TestDimmerSupportedFeatures:
 
 
 class TestTransitionToFade:
-    def test_provisional_linear_mapping(self):
+    def test_calibrated_linear_mapping(self):
         light_mod, _ = _make_light(device_type="dimmer")
-        assert light_mod.transition_to_fade(0.2) == 1
-        assert light_mod.transition_to_fade(1.0) == 5
-        assert light_mod.transition_to_fade(2.0, from_level=0, to_level=100) == 10
+        assert light_mod.transition_to_fade(0.1) == 1
+        assert light_mod.transition_to_fade(1.0) == 10
+        assert light_mod.transition_to_fade(2.0, from_level=0, to_level=100) == 20
+        assert light_mod.transition_to_fade(3.0) == 30
 
     def test_clamps_to_zero_for_zero_or_negative(self):
         light_mod, _ = _make_light(device_type="dimmer")
@@ -95,7 +96,7 @@ class TestTransitionToFade:
 
     def test_clamps_to_255_for_large_transitions(self):
         light_mod, _ = _make_light(device_type="dimmer")
-        assert light_mod.transition_to_fade(51.0) == 255
+        assert light_mod.transition_to_fade(25.5) == 255
         assert light_mod.transition_to_fade(300.0) == 255
 
 
@@ -106,7 +107,7 @@ class TestLightTransitionCommands:
         light._update_from_state({"state": "off", "level": 0})
         await light.async_turn_on(brightness=128, transition=2.0)
         light._coordinator.async_send_command.assert_awaited_once_with(
-            "10.10.1.40-0", "DIM", max(1, round(128 * 100 / 255)), fade=10
+            "10.10.1.40-0", "DIM", max(1, round(128 * 100 / 255)), fade=20
         )
 
     @pytest.mark.asyncio
@@ -131,7 +132,7 @@ class TestLightTransitionCommands:
         light._update_from_state({"state": "on", "level": 80})
         await light.async_turn_off(transition=3.0)
         light._coordinator.async_send_command.assert_awaited_once_with(
-            "10.10.1.40-0", "DIM", 0, fade=15
+            "10.10.1.40-0", "DIM", 0, fade=30
         )
 
     @pytest.mark.asyncio
