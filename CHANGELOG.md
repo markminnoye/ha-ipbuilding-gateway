@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.9.3] - 2026-11-15
-
-### Added
-- Configurable **Dimmer settings** (`default_transition`, default `6.0` s ≈ `fade 30`) in the integration options flow so HA UI, Google Home, and automations smoothly ramp dimmers even when no `transition` is passed (explicit `transition`, including `0`, still overrides).
-- `button_dim.yaml` (v9): `transition` input (default `6.0` s); short press uses `light.turn_on` / `light.turn_off` with `transition` when `> 0`, or native `light.toggle` when `0`.
-
 ## [1.9.2] - 2026-11-14
 
 ### Added

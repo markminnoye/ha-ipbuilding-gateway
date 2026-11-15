@@ -37,13 +37,7 @@ from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers import area_registry as ar, selector
 
-from .const import (
-    CONF_DEFAULT_TRANSITION,
-    CONF_ROOM_MAPPINGS,
-    DEFAULT_DIMMER_TRANSITION,
-    DOMAIN,
-    MAX_DIMMER_TRANSITION,
-)
+from .const import CONF_ROOM_MAPPINGS, DOMAIN
 from .room_mapping import apply_room_mappings, collect_unique_rooms
 
 
@@ -77,7 +71,7 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
             return await self.async_step_map_rooms()
         return self.async_show_menu(
             step_id="init",
-            menu_options=["map_rooms", "dimmer_settings", "scan_bus", "refresh_modules"],
+            menu_options=["map_rooms", "scan_bus", "refresh_modules"],
         )
 
     # -------------------------------------------------------------------------
@@ -179,7 +173,7 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         """Return to the options menu after a completed scan."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["map_rooms", "dimmer_settings", "scan_bus", "refresh_modules"],
+            menu_options=["map_rooms", "scan_bus", "refresh_modules"],
         )
 
     # -------------------------------------------------------------------------
@@ -212,43 +206,8 @@ class IPBuildingOptionsFlowHandler(OptionsFlow):
         """Return to the options menu after a completed refresh."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["map_rooms", "dimmer_settings", "scan_bus", "refresh_modules"],
+            menu_options=["map_rooms", "scan_bus", "refresh_modules"],
         )
-
-    # -------------------------------------------------------------------------
-    # Dimmer-instellingen (default transition)
-    # -------------------------------------------------------------------------
-
-    async def async_step_dimmer_settings(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Configure the default transition duration for all dimmer entities."""
-        if user_input is not None:
-            new_options = {
-                **dict(self.config_entry.options),
-                CONF_DEFAULT_TRANSITION: float(user_input[CONF_DEFAULT_TRANSITION]),
-            }
-            return self.async_create_entry(title="", data=new_options)
-
-        current = self.config_entry.options.get(
-            CONF_DEFAULT_TRANSITION, DEFAULT_DIMMER_TRANSITION
-        )
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_DEFAULT_TRANSITION, default=float(current)): (
-                    selector.NumberSelector(
-                        selector.NumberSelectorConfig(
-                            min=0.0,
-                            max=MAX_DIMMER_TRANSITION,
-                            step=0.2,
-                            unit_of_measurement="s",
-                            mode=selector.NumberSelectorMode.BOX,
-                        )
-                    )
-                )
-            }
-        )
-        return self.async_show_form(step_id="dimmer_settings", data_schema=schema)
 
 
 def _scan_placeholders(result: dict[str, Any]) -> dict[str, str]:

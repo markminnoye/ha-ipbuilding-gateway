@@ -125,56 +125,19 @@ def test_en_translations_contain_new_keys() -> None:
     menu = en["options"]["step"]["init"]["menu_options"]
     assert "scan_bus" in menu
     assert "refresh_modules" in menu
-    assert "dimmer_settings" in menu
     steps = en["options"]["step"]
-    for key in (
-        "dimmer_settings",
-        "scan_bus",
-        "scan_bus_done",
-        "refresh_modules",
-        "refresh_modules_done",
-    ):
+    for key in ("scan_bus", "scan_bus_done", "refresh_modules", "refresh_modules_done"):
         assert "title" in steps[key]
         assert "description" in steps[key]
 
 
-def test_dimmer_settings_in_options_flow_and_translations() -> None:
-    src = (_COMP / "options_flow.py").read_text(encoding="utf-8")
-    assert "async_step_dimmer_settings" in src
-    assert "CONF_DEFAULT_TRANSITION" in src
-    for path in (
-        _COMP / "strings.json",
-        _COMP / "translations" / "en.json",
-        _COMP / "translations" / "nl.json",
-    ):
-        data = json.loads(path.read_text(encoding="utf-8"))
-        assert "dimmer_settings" in data["options"]["step"]["init"]["menu_options"]
-        assert "default_transition" in data["options"]["step"]["dimmer_settings"]["data"]
-
-
-def test_button_dim_blueprint_has_transition_input() -> None:
-    text = (
-        _COMP
-        / "blueprints"
-        / "automation"
-        / "ha_ipbuilding_gateway"
-        / "button_dim.yaml"
-    ).read_text(encoding="utf-8")
-    assert "default: 6.0" in text
-    assert "light.turn_on" in text
-    assert "light.turn_off" in text
-    assert "light.toggle" in text
-    assert "ipbuilding_blueprint_version: 9" in text
-
-
 def test_manifest_version_bumped() -> None:
     manifest = json.loads((_COMP / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["version"] == "1.9.3"
+    assert manifest["version"] == "1.9.2"
 
 
-def test_changelog_has_1_9_3_entry() -> None:
+def test_changelog_has_1_9_2_entry() -> None:
     text = (_REPO / "CHANGELOG.md").read_text(encoding="utf-8")
-    assert "## [1.9.3]" in text
     assert "## [1.9.2]" in text
     assert "## [1.9.1]" in text
     assert "Dimmen door lang te drukken werkt weer." in text

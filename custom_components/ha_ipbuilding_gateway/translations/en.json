@@ -38,16 +38,8 @@
         "title": "IPBuilding Gateway Options",
         "menu_options": {
           "map_rooms": "Assign IPBuilding groups to areas",
-          "dimmer_settings": "Dimmer settings (default transition)",
           "scan_bus": "Scan field bus for modules",
           "refresh_modules": "Update buttons and module info"
-        }
-      },
-      "dimmer_settings": {
-        "title": "Dimmer settings",
-        "description": "Default transition time applied to dimmer turn_on and turn_off commands when no explicit transition is provided (0 s = instant).",
-        "data": {
-          "default_transition": "Default transition (seconds)"
         }
       },
       "map_rooms": {

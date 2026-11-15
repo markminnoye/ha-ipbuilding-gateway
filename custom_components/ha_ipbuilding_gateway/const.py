@@ -79,12 +79,3 @@ CONF_ROOM_MAPPINGS = "room_mappings"
 #: entry (right after its rooms first appear), so it is never offered
 #: again even if the operator closes it without submitting.
 CONF_ROOM_MAPPING_OFFERED = "room_mapping_offered"
-
-# ---------------------------------------------------------------------------
-# Dimmer default transition (options flow "Dimmer-instellingen")
-# ---------------------------------------------------------------------------
-
-CONF_DEFAULT_TRANSITION = "default_transition"
-#: Default dimmer transition in seconds (~6.0 s ≈ gateway fade 30 at 0.2 s/unit).
-DEFAULT_DIMMER_TRANSITION = 6.0
-MAX_DIMMER_TRANSITION = 51.0

@@ -22,11 +22,8 @@ from .button_id import canonical_button_id, canonicalise_button_device
 from .const import (
     CONF_API_PORT,
     CONF_API_HOST,
-    CONF_DEFAULT_TRANSITION,
     DEFAULT_API_PORT,
-    DEFAULT_DIMMER_TRANSITION,
     DOMAIN,
-    MAX_DIMMER_TRANSITION,
     RECONNECT_BACKOFF_MULT,
     RECONNECT_BASE_DELAY,
     RECONNECT_JITTER,
@@ -121,22 +118,6 @@ class IPBuildingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def ws_url(self) -> str:
         return self._ws_url
-
-    @property
-    def default_transition(self) -> float:
-        """Return the configured default dimmer transition in seconds."""
-        entry = getattr(self, "_entry", None)
-        options = getattr(entry, "options", None) if entry is not None else None
-        raw = (
-            options.get(CONF_DEFAULT_TRANSITION, DEFAULT_DIMMER_TRANSITION)
-            if isinstance(options, dict)
-            else DEFAULT_DIMMER_TRANSITION
-        )
-        try:
-            value = float(raw)
-        except (TypeError, ValueError):
-            return DEFAULT_DIMMER_TRANSITION
-        return max(0.0, min(MAX_DIMMER_TRANSITION, value))
 
     # -------------------------------------------------------------------------
     # DataUpdateCoordinator interface

@@ -38,16 +38,8 @@
         "title": "IPBuilding Gateway Opties",
         "menu_options": {
           "map_rooms": "IPBuilding-groepen aan HA-ruimtes toewijzen",
-          "dimmer_settings": "Dimmer-instellingen (standaard overgangstijd)",
           "scan_bus": "Modules opzoeken op de veldbus",
           "refresh_modules": "Knoppen en module-info bijwerken"
-        }
-      },
-      "dimmer_settings": {
-        "title": "Dimmer-instellingen",
-        "description": "Standaard overgangstijd voor dimmers wanneer een commando geen expliciete transition meegeeft (0 s = direct).",
-        "data": {
-          "default_transition": "Standaard overgangstijd (seconden)"
         }
       },
       "map_rooms": {

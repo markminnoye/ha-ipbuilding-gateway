@@ -6,7 +6,7 @@ blueprint:
     de richting zelf) · loslaten = ramp stoppen. **Geen helper nodig,
     geen blueprint-state** — de dimmer zelf houdt de richting bij.
 
-    **Blueprint-versie: 9.** Vereist gateway add-on vanaf
+    **Blueprint-versie: 8.** Vereist gateway add-on vanaf
     `feature/dimmer-downstream-td` (volgende release: `1.1.0`).
 
     Alleen als je een dimmer zonder native hold-to-dim aanstuurt of
@@ -36,24 +36,6 @@ blueprint:
         entity:
           domain: light
           multiple: false
-
-    transition:
-      name: Overgangstijd (seconden)
-      description: >
-        Zachte overgangstijd bij kort indrukken (standaard 6,0 s ≈ fade 30).
-        Zet op 0 voor directe native toggle (module-geheugen zonder fade).
-      default: 6.0
-      selector:
-        number:
-          min: 0.0
-          max: 51.0
-          step: 0.2
-          unit_of_measurement: s
-          mode: box
-
-variables:
-  target_light: !input target_light
-  transition_s: !input transition
 
 mode: restart
 
@@ -87,35 +69,17 @@ trigger:
 
 action:
   - choose:
-      # Short press → soft turn_on/turn_off when transition > 0 (routes via
-      # S/C + fade), or native light.toggle (T<ch>991000) when transition == 0.
+      # Short press → toggle the light. The gateway emits `single_press`
+      # on release of a short tap, so this fires immediately when the
+      # operator releases. v8 keeps the v6/v7 contract: the gateway
+      # classifies the press, the blueprint just maps events to actions.
       - conditions:
           - condition: trigger
             id: single_press
         sequence:
-          - if:
-              - condition: template
-                value_template: "{{ (transition_s | float(0)) > 0 }}"
-            then:
-              - if:
-                  - condition: template
-                    value_template: "{{ is_state(target_light, 'on') }}"
-                then:
-                  - action: light.turn_off
-                    target:
-                      entity_id: !input target_light
-                    data:
-                      transition: "{{ transition_s | float }}"
-                else:
-                  - action: light.turn_on
-                    target:
-                      entity_id: !input target_light
-                    data:
-                      transition: "{{ transition_s | float }}"
-            else:
-              - action: light.toggle
-                target:
-                  entity_id: !input target_light
+          - action: light.toggle
+            target:
+              entity_id: !input target_light
 
       # Hold → start the native ramp on the IP0300PoE. The module ramps
       # and auto-reverses direction on each successive hold; no helper,
@@ -140,4 +104,4 @@ action:
             target:
               entity_id: !input target_light
 
-# ipbuilding_blueprint_version: 9
+# ipbuilding_blueprint_version: 8
