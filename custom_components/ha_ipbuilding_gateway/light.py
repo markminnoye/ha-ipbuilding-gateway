@@ -174,8 +174,21 @@ class IPBuildingLight(LightEntity):
                 self._attr_brightness = round(255 * level / 100)
 
     async def _async_dim(self, level: int, kwargs: dict[str, Any]) -> None:
-        """Send a DIM command, translating optional HA transition to gateway fade."""
+        """Send a DIM command, translating optional HA transition to gateway fade.
+
+        When ``ATTR_TRANSITION`` is omitted, falls back to the coordinator's
+        configured ``default_transition`` (if > 0). Explicit ``transition=0``
+        always sends ``fade=0`` (instant).
+        """
         transition = kwargs.get(ATTR_TRANSITION)
+        if transition is None:
+            default_t = getattr(self._coordinator, "default_transition", None)
+            if (
+                isinstance(default_t, (int, float))
+                and not isinstance(default_t, bool)
+                and default_t > 0
+            ):
+                transition = default_t
         if transition is None:
             await self._coordinator.async_send_command(self._entity_id, "DIM", level)
             return
